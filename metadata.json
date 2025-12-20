@@ -1,0 +1,7 @@
+{
+  "name": "Copy of YardManager - ヤード管理システム",
+  "description": "中古車輸出ヤード向けの在庫・位置管理システム。ヤード構成、位置コード、車両ステータスを直感的に管理できます。",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
