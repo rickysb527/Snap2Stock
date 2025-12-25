@@ -1,143 +1,132 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Vehicle } from '../types';
-import { Info, Map as MapIcon, ChevronRight, CornerDownRight, Layers } from 'lucide-react';
-import { STATUS_COLORS } from '../constants';
+import { YARD_COLS, YARD_ROWS } from '../constants';
+import { MapPin, Info } from 'lucide-react';
 
 interface YardMapProps {
   vehicles: Vehicle[];
+  highlightedVin?: string;
 }
 
-const YardMap: React.FC<YardMapProps> = ({ vehicles }) => {
-  const areas = ['A', 'B', 'C', 'D', 'E', 'F'];
-  const [selectedCell, setSelectedCell] = useState<{ area: string; row: number } | null>(null);
-
-  const getVehiclesInCell = (area: string, row: number) => {
-    return vehicles.filter(v => v.locationCode.startsWith(`${area}-${row.toString().padStart(2, '0')}`));
-  };
+const YardMap: React.FC<YardMapProps> = ({ vehicles, highlightedVin }) => {
+  const highlightedVehicle = vehicles.find(v => v.VIN === highlightedVin);
 
   return (
-    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-10 duration-1000 ease-[cubic-bezier(0.23,1,0.32,1)]">
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10">
+    <div className="space-y-10 animate-in fade-in duration-700">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h2 className="text-5xl font-black tracking-tighter text-slate-900">Spatial Topology</h2>
-          <p className="text-slate-400 text-lg font-medium mt-2">ヤード内の密度と車両分布のデジタルツイン</p>
+          <h2 className="text-4xl font-black tracking-tighter text-slate-900">Interactive Map</h2>
+          <p className="text-slate-400 font-bold mt-1 uppercase tracking-widest text-xs">Yard Visualization</p>
         </div>
-        <div className="bg-white p-3 rounded-[32px] border border-slate-100 shadow-sm flex items-center space-x-4">
-          <div className="flex items-center space-x-2 px-4 py-2 bg-slate-50 rounded-[18px]">
-            <div className="w-2 h-2 rounded-full bg-slate-300" />
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Available</span>
+        <div className="flex items-center gap-4 bg-white px-6 py-4 rounded-2xl border border-slate-100 shadow-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-slate-200 border border-slate-300 rounded-full"></div>
+            <span className="text-[10px] font-black text-slate-500 uppercase">Available</span>
           </div>
-          <div className="flex items-center space-x-2 px-4 py-2 bg-blue-50 rounded-[18px]">
-            <div className="w-2 h-2 rounded-full bg-blue-600 animate-ping" />
-            <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Active Lot</span>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
+            <span className="text-[10px] font-black text-slate-500 uppercase">Occupied</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-rose-500 rounded-full animate-pulse"></div>
+            <span className="text-[10px] font-black text-rose-500 uppercase">Target Unit</span>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-12">
-        <div className="xl:col-span-8 bg-white p-12 lg:p-16 rounded-[60px] border border-slate-100 shadow-2xl shadow-slate-200/50">
-          <div className="grid grid-cols-6 gap-8">
-            {areas.map(area => (
-              <div key={area} className="space-y-8">
-                <div className="text-center group">
-                  <span className="text-3xl font-black text-slate-200 group-hover:text-slate-900 transition-colors duration-500">
-                    {area}
-                  </span>
-                  <div className="h-1 w-8 bg-blue-500 mx-auto mt-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                </div>
-                <div className="space-y-4">
-                  {[1, 2, 3, 4, 5].map(row => {
-                    const cellVehicles = getVehiclesInCell(area, row);
-                    const isSelected = selectedCell?.area === area && selectedCell?.row === row;
-                    const occupancyColor = cellVehicles.length > 2 ? 'bg-slate-900 text-white shadow-2xl' : cellVehicles.length > 0 ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-50 text-slate-300';
-                    
-                    return (
-                      <button
-                        key={`${area}-${row}`}
-                        onClick={() => setSelectedCell({ area, row })}
-                        className={`
-                          group w-full aspect-[4/5] rounded-[28px] border-2 transition-all duration-700 p-4 flex flex-col justify-between relative overflow-hidden
-                          ${isSelected ? 'border-blue-500 scale-110 z-20 shadow-2xl' : 'border-transparent hover:border-slate-100 hover:scale-[1.05]'}
-                          ${occupancyColor}
-                        `}
-                      >
-                        <span className={`text-[10px] font-black opacity-30 uppercase tracking-[0.2em]`}>{row.toString().padStart(2, '0')}</span>
-                        <div className="flex-1 flex items-center justify-center">
-                           <span className="text-3xl font-black tracking-tighter">
-                            {cellVehicles.length > 0 ? cellVehicles.length : ''}
-                          </span>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        {/* Main Grid Map */}
+        <div className="lg:col-span-8 bg-slate-900 p-8 md:p-12 rounded-[60px] shadow-2xl relative">
+          <div className="grid grid-cols-11 gap-2 md:gap-4">
+            {/* Corner label */}
+            <div className="h-10"></div>
+            {/* Column labels A-J */}
+            {YARD_COLS.map(col => (
+              <div key={col} className="h-10 flex items-center justify-center text-slate-500 font-black text-xs">{col}</div>
+            ))}
+
+            {YARD_ROWS.map(row => (
+              <React.Fragment key={row}>
+                {/* Row label 1-10 */}
+                <div className="flex items-center justify-center text-slate-500 font-black text-xs w-8">{row}</div>
+                {YARD_COLS.map(col => {
+                  const zoneCode = `${col}-${row}`;
+                  const vehicleInSlot = vehicles.find(v => v.Zone === zoneCode);
+                  const isHighlighted = highlightedVehicle?.Zone === zoneCode;
+                  
+                  return (
+                    <div 
+                      key={zoneCode}
+                      className={`
+                        aspect-square rounded-lg md:rounded-xl border transition-all duration-500 relative flex items-center justify-center group
+                        ${isHighlighted ? 'bg-rose-500 border-rose-400 shadow-[0_0_20px_rgba(244,63,94,0.4)] z-10 scale-110' : 
+                          vehicleInSlot ? 'bg-blue-600/20 border-blue-500/30 hover:bg-blue-600/40' : 'bg-white/5 border-white/10 hover:border-white/20'}
+                      `}
+                    >
+                      {isHighlighted ? (
+                        <MapPin className="text-white animate-bounce" size={16} />
+                      ) : vehicleInSlot ? (
+                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                      ) : null}
+                      
+                      {/* Tooltip on hover */}
+                      {vehicleInSlot && (
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-4 py-2 bg-white text-slate-900 rounded-xl shadow-2xl text-[10px] font-black opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-30 pointer-events-none">
+                          {vehicleInSlot.ModelOfCar} ({vehicleInSlot.VIN.slice(-4)})
                         </div>
-                        <div className="flex gap-1 justify-center">
-                          {cellVehicles.slice(0, 3).map(v => (
-                            <div key={v.id} className="w-1 h-1 rounded-full bg-white opacity-40" />
-                          ))}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </React.Fragment>
             ))}
           </div>
         </div>
 
-        {/* Side Panel Detail */}
-        <div className="xl:col-span-4">
-          <div className="bg-slate-900 rounded-[60px] p-12 text-white h-full relative overflow-hidden shadow-2xl shadow-slate-300">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 blur-[100px] -mr-32 -mt-32"></div>
-            {selectedCell ? (
-              <div className="animate-in fade-in slide-in-from-right-10 duration-700 ease-out h-full flex flex-col">
-                <div className="mb-14">
-                  <div className="flex items-center space-x-2 mb-4 text-blue-500">
-                    <Layers size={16} />
-                    <span className="text-[10px] font-black uppercase tracking-[0.3em]">Sector Metadata</span>
-                  </div>
-                  <h3 className="text-6xl font-black tracking-tighter leading-none">{selectedCell.area}<span className="text-blue-500">.</span>{selectedCell.row.toString().padStart(2, '0')}</h3>
-                  <div className="mt-6 flex items-center space-x-4">
-                    <div className="px-4 py-2 bg-white/10 rounded-2xl text-xs font-black">{getVehiclesInCell(selectedCell.area, selectedCell.row).length} Assets</div>
-                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Active Slot</div>
-                  </div>
+        {/* Selected Unit Details / Guide */}
+        <div className="lg:col-span-4 space-y-6">
+          <div className="bg-white rounded-[40px] p-10 border border-slate-100 shadow-sm h-full flex flex-col">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="p-3 bg-blue-50 rounded-2xl"><Info className="text-blue-600" size={20} /></div>
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">Search Result</h3>
+            </div>
+
+            {highlightedVehicle ? (
+              <div className="flex-1 space-y-6 animate-in slide-in-from-right duration-500">
+                <div className="bg-slate-50 rounded-[32px] p-8">
+                  <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em]">Target Location</span>
+                  <h4 className="text-6xl font-black text-slate-900 tracking-tighter mt-2">Zone {highlightedVehicle.Zone}</h4>
                 </div>
                 
-                <div className="flex-1 space-y-4 overflow-y-auto pr-4 custom-scrollbar">
-                  {getVehiclesInCell(selectedCell.area, selectedCell.row).map(v => (
-                    <div key={v.id} className="group p-6 rounded-[32px] bg-white/5 border border-white/5 hover:bg-white/10 hover:border-blue-500/30 transition-all cursor-pointer">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="font-black text-[10px] text-blue-400 tracking-[0.2em] uppercase">{v.controlNumber}</span>
-                        <CornerDownRight size={14} className="text-slate-600 group-hover:text-blue-400 transition-colors" />
-                      </div>
-                      <div className="text-xl font-black tracking-tight line-clamp-1">{v.carName}</div>
-                      <div className="mt-4 flex items-center justify-between text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                        <span>{v.destination}</span>
-                        <div className={`px-2 py-1 rounded-lg bg-white/5 ${STATUS_COLORS[v.status].split(' ')[2]}`}>
-                           {v.status}
-                        </div>
-                      </div>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Model / Name</p>
+                    <p className="text-lg font-black text-slate-900">{highlightedVehicle.Automaker} {highlightedVehicle.ModelOfCar}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Full VIN</p>
+                      <p className="font-mono font-bold text-slate-700">{highlightedVehicle.VIN}</p>
                     </div>
-                  ))}
-                  {getVehiclesInCell(selectedCell.area, selectedCell.row).length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-20 text-slate-600 text-center">
-                       <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-6">
-                         <Info size={24} />
-                       </div>
-                       <p className="text-xs font-black uppercase tracking-widest">Empty Grid Section</p>
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Company</p>
+                      <p className="font-bold text-slate-700">{highlightedVehicle.CompanyName}</p>
                     </div>
-                  )}
+                  </div>
                 </div>
-                
-                <button className="mt-10 w-full py-6 bg-blue-600 hover:bg-blue-500 text-white rounded-[28px] font-black uppercase text-[11px] tracking-[0.3em] transition-all shadow-2xl shadow-blue-900/40 hover:scale-[1.02] active:scale-95">
-                  Launch Asset Inspector
-                </button>
+
+                <div className="pt-6 border-t border-slate-100">
+                  <p className="text-xs font-bold text-slate-500 leading-relaxed italic">
+                    "最後にこのゾーンで確認されました。探す前に、まずこのグリッド周辺を重点的に確認してください。"
+                  </p>
+                </div>
               </div>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center text-center px-6">
-                <div className="w-32 h-32 bg-white/5 rounded-[48px] flex items-center justify-center mb-10 border border-white/10">
-                  <MapIcon size={48} className="text-slate-700" strokeWidth={1} />
-                </div>
-                <h3 className="text-2xl font-black tracking-tighter mb-4">Select Grid Section</h3>
-                <p className="text-slate-500 text-sm font-medium leading-relaxed uppercase tracking-widest">
-                  Tap any yard lot to inspect real-time unit distributions and technical specifications.
+              <div className="flex-1 flex flex-col items-center justify-center text-center opacity-40">
+                <MapPin size={64} strokeWidth={1} className="text-slate-300 mb-6" />
+                <p className="text-sm font-bold text-slate-500">
+                  検索窓から車両を選択すると、<br/>ヤード内の位置がマップ上に表示されます。
                 </p>
               </div>
             )}

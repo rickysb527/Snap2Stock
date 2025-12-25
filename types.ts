@@ -1,35 +1,29 @@
 
 export enum VehicleStatus {
-  INVENTORY = '在庫',
-  OUTBOUND_SCHEDULED = '出庫予定',
-  BANNING_WAIT = 'バンニング待ち',
-  DOCS_COMPLETE = '書類完了'
+  INVENTORY = 'Inventory',
+  SHIPPED = 'Shipped',
+  MAINTENANCE = 'Maintenance',
+  PENDING = 'Pending'
 }
 
 export interface Vehicle {
   id: string;
-  controlNumber: string;
-  carName: string;
-  vin: string;
-  locationCode: string; // e.g., A-03-12
-  destination: string;
-  status: VehicleStatus;
-  containerNumber?: string;
-  arrivalDate: string;
-  color: string;
-  companyName: string;
-  remarks: string;
+  Zone: string; // e.g., "A-4"
+  DateOfReceipt: string;
+  CompanyName: string;
+  Automaker: string;
+  ModelOfCar: string;
+  VIN: string;
+  Year: string;
+  Color: string;
+  NumberPlate: string;
+  Destination: string;
+  Document: string;
+  ShippingDate: string;
+  Note: string;
 }
 
-export interface YardZone {
-  id: string;
-  name: string;
-  description: string;
-  color: string;
-}
-
-export interface LocationParts {
-  area: string;
-  row: string;
-  number: string;
+export interface MasterDataState {
+  isInitialized: boolean;
+  lastSync: string;
 }

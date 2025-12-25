@@ -1,163 +1,189 @@
 
-import React from 'react';
-import { Vehicle, VehicleStatus } from '../types';
-import { STATUS_COLORS, YARD_ZONES } from '../constants';
-// Added PlusCircle and ChevronRight to imports
-import { ArrowRight, Car, MapPin, Package, FileCheck, TrendingUp, Zap, Clock, PlusCircle, ChevronRight } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Vehicle } from '../types';
+import { Car, Calendar, ArrowRight, Database, ChevronRight, PlusCircle, QrCode, FileUp, Loader2, CheckCircle2 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface DashboardProps {
   vehicles: Vehicle[];
-  onViewAll: () => void;
-  onViewMap: () => void;
+  onNavigateToStock: () => void;
+  onNavigateToTodayOutbound: () => void;
+  onNavigateToInbound: () => void;
+  onNavigateToScanner: () => void;
+  onImportVehicles: (data: Vehicle[]) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ vehicles, onViewAll, onViewMap }) => {
-  const stats = [
-    { label: '総車両在庫', value: vehicles.length, icon: Car, color: 'text-blue-600', bg: 'bg-blue-50', glow: 'shadow-blue-200' },
-    { label: 'バンニング待ち', value: vehicles.filter(v => v.status === VehicleStatus.BANNING_WAIT).length, icon: Package, color: 'text-rose-600', bg: 'bg-rose-50', glow: 'shadow-rose-200' },
-    { label: '出庫予定', value: vehicles.filter(v => v.status === VehicleStatus.OUTBOUND_SCHEDULED).length, icon: MapPin, color: 'text-amber-600', bg: 'bg-amber-50', glow: 'shadow-amber-200' },
-    { label: '書類完了', value: vehicles.filter(v => v.status === VehicleStatus.DOCS_COMPLETE).length, icon: FileCheck, color: 'text-emerald-600', bg: 'bg-emerald-50', glow: 'shadow-emerald-200' },
-  ];
+const Dashboard: React.FC<DashboardProps> = ({ 
+  vehicles, 
+  onNavigateToStock,
+  onNavigateToTodayOutbound,
+  onNavigateToInbound,
+  onNavigateToScanner,
+  onImportVehicles
+}) => {
+  const today = new Date().toISOString().split('T')[0];
+  const todayOutbound = vehicles.filter(v => v.ShippingDate === today).length;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
+
+  const formatDate = (val: any) => {
+    if (!val) return '';
+    if (val instanceof Date) return val.toISOString().split('T')[0];
+    if (typeof val === 'number') {
+      const date = new Date((val - 25569) * 86400 * 1000);
+      return date.toISOString().split('T')[0];
+    }
+    return String(val);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    setImportStatus('Analyzing spreadsheet structure...');
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const dataBuffer = evt.target?.result;
+        const wb = XLSX.read(dataBuffer, { type: 'array', cellDates: true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        
+        // 1. まず全ての行を配列の配列として読み込む (header: 1)
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as any[][];
+        
+        if (rows.length === 0) throw new Error("Sheet is empty");
+
+        // 2. ヘッダー行を探す (VIN, Maker, Modelなどが含まれる最初の行)
+        let headerRowIndex = 0;
+        const keywords = ['vin', 'chassis', 'maker', 'automaker', 'model', 'modelofcar'];
+        
+        for (let i = 0; i < Math.min(rows.length, 10); i++) {
+          const rowValues = rows[i].map(v => String(v).toLowerCase());
+          if (keywords.some(k => rowValues.some(rv => rv.includes(k)))) {
+            headerRowIndex = i;
+            break;
+          }
+        }
+
+        // 3. ヘッダー行以降をオブジェクトとしてパースする
+        const data = XLSX.utils.sheet_to_json(ws, { range: headerRowIndex, defval: '' }) as any[];
+
+        const normalize = (s: string) => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+        const findVal = (item: any, ...keys: string[]) => {
+          const itemKeys = Object.keys(item);
+          for (const k of keys) {
+            const nk = normalize(k);
+            const foundKey = itemKeys.find(ik => normalize(ik) === nk);
+            if (foundKey && item[foundKey] !== '') return item[foundKey];
+          }
+          return '';
+        };
+
+        const importedVehicles: Vehicle[] = data.map((item) => {
+          const zoneVal = String(findVal(item, 'Zone', 'Yard Slot', 'Slot', 'ヤード位置') || '');
+          const isValidZone = /^[A-J]-\d+$/.test(zoneVal);
+
+          return {
+            id: Math.random().toString(36).substr(2, 9),
+            Zone: isValidZone ? zoneVal : '',
+            DateOfReceipt: formatDate(findVal(item, 'Date of Receipt', 'DateOfReceipt', '入庫日', 'Receipt')),
+            CompanyName: String(findVal(item, 'Company Name', 'CompanyName', '会社名', 'Owner', 'Client') || 'Unknown'),
+            Automaker: String(findVal(item, 'Automaker', 'Maker', 'メーカー', 'Brand') || ''),
+            ModelOfCar: String(findVal(item, 'Model of car', 'ModelOfCar', 'モデル', 'Model', 'CarName') || ''),
+            VIN: String(findVal(item, 'VIN', 'Vehicle Identification Number', '車体番号', 'Chassis') || ''),
+            Year: String(findVal(item, 'Year', '年式', 'YearModel') || ''),
+            Color: String(findVal(item, 'Color', 'カラー', 'Exterior') || ''),
+            NumberPlate: String(findVal(item, 'Number Plate', 'NumberPlate', 'ナンバー', 'Plate') || ''),
+            Destination: String(findVal(item, 'Destination', '仕向地', 'Port') || ''),
+            Document: String(findVal(item, 'Document', '書類状態', 'Docs') || 'Pending'),
+            ShippingDate: formatDate(findVal(item, 'Shipping Date', 'ShippingDate', '出荷予定日', 'ETD')),
+            Note: String(findVal(item, 'Note', '備考', 'Remarks') || '')
+          };
+        });
+
+        const filtered = importedVehicles.filter(v => v.Automaker || v.VIN || v.ModelOfCar);
+        onImportVehicles(filtered);
+        setImportStatus(`${filtered.length} units imported correctly.`);
+        setTimeout(() => setImportStatus(null), 3000);
+      } catch (err) {
+        console.error(err);
+        alert("Excel parse error. Please check the spreadsheet header names.");
+      } finally {
+        setIsImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
 
   return (
-    <div className="space-y-16 animate-in fade-in slide-in-from-bottom-10 duration-1000 ease-[cubic-bezier(0.23,1,0.32,1)]">
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10">
-        <div>
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="px-3 py-1.5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-slate-200">System Live</div>
-            <div className="h-1.5 w-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+    <div className="space-y-12 animate-in fade-in duration-700">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <button onClick={onNavigateToStock} className="group flex flex-col justify-between p-8 bg-blue-600 rounded-[32px] text-white shadow-xl shadow-blue-500/20 hover:bg-blue-700 transition-all hover:scale-[1.02] text-left">
+          <div className="p-4 bg-white/10 rounded-2xl self-start"><Database size={28} strokeWidth={2.5} /></div>
+          <div className="mt-8 flex items-end justify-between w-full">
+            <div><h4 className="text-xl font-black tracking-tighter uppercase italic">在庫管理システム</h4><p className="text-blue-100 text-[10px] font-bold opacity-80 uppercase tracking-widest mt-1">Registry / Map</p></div>
+            <ArrowRight className="opacity-40 group-hover:opacity-100 transition-opacity" size={24} />
           </div>
-          <h2 className="text-5xl font-black tracking-tighter text-slate-900 mb-3">Inventory Insights</h2>
-          <p className="text-slate-400 text-lg font-medium">ヤードオペレーションの統合モニタリングパネル</p>
-        </div>
-        <div className="flex items-center space-x-4">
-          <button onClick={onViewMap} className="px-8 py-5 bg-white border border-slate-100 rounded-[28px] text-slate-600 font-black text-xs uppercase tracking-widest shadow-xl shadow-slate-200/50 hover:bg-slate-50 transition-all flex items-center space-x-3 active:scale-95">
-            <Zap size={16} className="text-blue-500" />
-            <span>Interactive Map</span>
+        </button>
+
+        <button onClick={onNavigateToInbound} className="group flex flex-col justify-between p-8 bg-emerald-600 rounded-[32px] text-white shadow-xl shadow-emerald-500/20 hover:bg-emerald-700 transition-all hover:scale-[1.02] text-left">
+          <div className="p-4 bg-white/10 rounded-2xl self-start"><PlusCircle size={28} strokeWidth={2.5} /></div>
+          <div className="mt-8 flex items-end justify-between w-full">
+            <div><h4 className="text-xl font-black tracking-tighter uppercase italic">新規車両登録</h4><p className="text-emerald-100 text-[10px] font-bold opacity-80 uppercase tracking-widest mt-1">Map Entry</p></div>
+            <ArrowRight className="opacity-40 group-hover:opacity-100 transition-opacity" size={24} />
+          </div>
+        </button>
+
+        <button onClick={onNavigateToScanner} className="group flex flex-col justify-between p-8 bg-slate-900 rounded-[32px] text-white shadow-xl shadow-slate-500/20 hover:bg-black transition-all hover:scale-[1.02] text-left">
+          <div className="p-4 bg-white/10 rounded-2xl self-start"><QrCode size={28} strokeWidth={2.5} /></div>
+          <div className="mt-8 flex items-end justify-between w-full">
+            <div><h4 className="text-xl font-black tracking-tighter uppercase italic">QR スキャナー</h4><p className="text-slate-400 text-[10px] font-bold opacity-80 uppercase tracking-widest mt-1">QR / VIN Search</p></div>
+            <ArrowRight className="opacity-40 group-hover:opacity-100 transition-opacity" size={24} />
+          </div>
+        </button>
+
+        <div className="relative group">
+          <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx,.xls,.csv" className="hidden" />
+          <button onClick={() => fileInputRef.current?.click()} disabled={isImporting} className={`group flex flex-col justify-between p-8 w-full h-full bg-indigo-600 rounded-[32px] text-white shadow-xl shadow-indigo-500/20 hover:bg-indigo-700 transition-all hover:scale-[1.02] text-left ${isImporting ? 'animate-pulse cursor-wait' : ''}`}>
+            <div className="p-4 bg-white/10 rounded-2xl self-start">{isImporting ? <Loader2 size={28} className="animate-spin" /> : <FileUp size={28} strokeWidth={2.5} />}</div>
+            <div className="mt-8 flex items-end justify-between w-full">
+              <div><h4 className="text-xl font-black tracking-tighter uppercase italic">エクセルからインポート</h4><p className="text-indigo-100 text-[10px] font-bold opacity-80 uppercase tracking-widest mt-1">Excel / CSV</p></div>
+              <ArrowRight className="opacity-40 group-hover:opacity-100 transition-opacity" size={24} />
+            </div>
           </button>
-          <button onClick={onViewAll} className="px-10 py-5 bg-slate-900 text-white rounded-[28px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-slate-300 hover:bg-black transition-all flex items-center space-x-3 btn-glow active:scale-95">
-            <span>Manage All Units</span>
-            <ArrowRight size={16} />
-          </button>
+          {importStatus && (
+            <div className="absolute -bottom-16 left-0 right-0 animate-in slide-in-from-top-2">
+              <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex items-center gap-3 shadow-lg">
+                <CheckCircle2 size={18} className="text-emerald-500" /><span className="text-[11px] font-black text-emerald-600 uppercase tracking-widest">{importStatus}</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-8">
-        {stats.map((stat, i) => (
-          <div key={i} className="group relative bg-white p-8 rounded-[44px] border border-slate-100 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.03)] hover:shadow-2xl hover:shadow-slate-200 hover:translate-y-[-4px] transition-all duration-700 overflow-hidden">
-            <div className={`absolute -right-8 -bottom-8 w-40 h-40 ${stat.bg} rounded-full opacity-0 group-hover:opacity-40 transition-opacity blur-3xl`}></div>
-            <div className="flex items-start justify-between relative z-10">
-              <div className={`p-5 rounded-[24px] ${stat.bg} ${stat.color} shadow-lg ${stat.glow} group-hover:scale-110 transition-transform duration-500`}>
-                <stat.icon size={28} strokeWidth={2.5} />
-              </div>
-              <div className="flex flex-col items-end">
-                <span className="text-5xl font-black tracking-tighter text-slate-900">{stat.value}</span>
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">{stat.label}</span>
-              </div>
-            </div>
-            <div className="mt-8 flex items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest relative z-10">
-              <Clock size={12} className="mr-2" />
-              <span>Real-time update</span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
-        {/* Distribution Map */}
-        <div className="xl:col-span-8 bg-slate-50 rounded-[60px] p-10 lg:p-14 border border-slate-100/50">
-          <div className="flex items-center justify-between mb-12">
-            <div>
-              <h3 className="text-3xl font-black text-slate-900 tracking-tighter">Zone Utilization</h3>
-              <p className="text-slate-400 font-bold text-sm mt-1">ヤード収容能力の可視化</p>
-            </div>
-            <div className="flex -space-x-3">
-              {[1, 2, 3, 4].map(n => (
-                <div key={n} className="w-10 h-10 rounded-full bg-white border-4 border-slate-50 flex items-center justify-center font-black text-[10px] text-slate-400 shadow-sm">{n}</div>
-              ))}
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {YARD_ZONES.map((zone) => {
-              const count = vehicles.filter(v => {
-                if (zone.id === '1') return v.locationCode.startsWith('A');
-                if (zone.id === '2') return v.locationCode.startsWith('B') || v.locationCode.startsWith('C');
-                if (zone.id === '3') return v.status === VehicleStatus.BANNING_WAIT;
-                if (zone.id === '4') return v.remarks.toLowerCase().includes('修理') || v.remarks.toLowerCase().includes('不動');
-                return false;
-              }).length;
-              const percentage = Math.min(100, Math.round((count / (vehicles.length || 1)) * 100 * 1.5)); // Exaggerate for visual
-              
-              return (
-                <div key={zone.id} className="group bg-white p-8 rounded-[40px] border border-slate-100/50 hover:shadow-2xl hover:shadow-slate-200 transition-all duration-700">
-                  <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center space-x-4">
-                      <div className={`w-4 h-4 rounded-full ring-8 ring-${zone.color}-50 bg-${zone.color}-500 group-hover:animate-ping`} />
-                      <span className="font-black text-slate-900 tracking-tight">{zone.name}</span>
-                    </div>
-                    <span className="text-2xl font-black text-slate-900">{count} <span className="text-xs text-slate-300">units</span></span>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      <span>Live Capacity</span>
-                      <span className={`text-${zone.color}-500`}>{percentage}%</span>
-                    </div>
-                    <div className="w-full h-3 bg-slate-50 rounded-full overflow-hidden p-0.5">
-                      <div 
-                        className={`h-full bg-${zone.color}-500 rounded-full transition-all duration-1000 ease-out`} 
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="bg-white rounded-[40px] p-10 border border-slate-100 shadow-sm relative overflow-hidden">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Total Units in Yard</p>
+          <div className="flex items-center justify-between">
+            <h3 className="text-6xl font-black tracking-tighter text-slate-900">{vehicles.length}</h3>
+            <div className="p-6 bg-blue-50 rounded-3xl"><Car className="text-blue-500" size={32} /></div>
           </div>
         </div>
-
-        {/* Action Panel */}
-        <div className="xl:col-span-4 space-y-8">
-          <div className="bg-slate-900 rounded-[56px] p-10 text-white relative overflow-hidden shadow-2xl shadow-slate-300">
-            <div className="absolute top-0 right-0 w-40 h-40 bg-blue-500/20 blur-[80px]"></div>
-            <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em] mb-6">Quick Actions</h4>
-            <div className="space-y-5">
-              {[
-                { label: 'Register New Batch', icon: PlusCircle },
-                { label: 'Export Logistics Report', icon: FileCheck },
-                { label: 'Real-time Yard Sync', icon: Zap }
-              ].map((action, i) => (
-                <button key={i} className="w-full flex items-center justify-between p-5 rounded-3xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-blue-500/50 transition-all group">
-                  <div className="flex items-center space-x-4">
-                    <action.icon size={20} className="text-blue-500 group-hover:scale-110 transition-transform" />
-                    <span className="text-sm font-bold tracking-tight">{action.label}</span>
-                  </div>
-                  <ChevronRight size={16} className="text-slate-600 group-hover:translate-x-1 transition-all" />
-                </button>
-              ))}
+        <div className="bg-white rounded-[40px] p-10 border border-slate-100 shadow-sm relative overflow-hidden flex flex-col justify-between">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Today's Outbound</p>
+            <div className="flex items-center justify-between">
+              <h3 className="text-6xl font-black tracking-tighter text-slate-900">{todayOutbound}</h3>
+              <div className="p-6 bg-amber-50 rounded-3xl"><Calendar className="text-amber-500" size={32} /></div>
             </div>
           </div>
-
-          <div className="bg-white rounded-[56px] border border-slate-100 p-10 shadow-sm relative overflow-hidden">
-             <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-rose-50 rounded-full blur-3xl opacity-50"></div>
-             <div className="relative z-10">
-               <div className="flex items-center justify-between mb-8">
-                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Critical Tasks</h4>
-                 <TrendingUp size={16} className="text-blue-500" />
-               </div>
-               <div className="space-y-4">
-                 {vehicles.slice(0, 3).map(v => (
-                   <div key={v.id} className="flex items-center space-x-4 p-4 rounded-2xl bg-slate-50 hover:bg-white border border-transparent hover:border-slate-100 transition-all cursor-default">
-                     <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center font-black text-[10px] text-blue-600">{v.controlNumber.split('-')[1]}</div>
-                     <div className="flex-1 min-w-0">
-                       <p className="text-xs font-black text-slate-900 truncate">{v.carName}</p>
-                       <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{v.status}</p>
-                     </div>
-                   </div>
-                 ))}
-               </div>
-             </div>
-          </div>
+          <button onClick={onNavigateToTodayOutbound} className="mt-8 flex items-center justify-center gap-3 w-full py-4 bg-slate-50 border border-slate-100 rounded-2xl text-[11px] font-black uppercase tracking-widest text-slate-600 hover:bg-blue-600 hover:text-white transition-all group">
+            VIEW OUTBOUND SCHEDULE<ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
+          </button>
         </div>
       </div>
     </div>
