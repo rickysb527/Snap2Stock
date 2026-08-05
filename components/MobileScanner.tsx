@@ -48,9 +48,6 @@ const MobileScanner: React.FC<MobileScannerProps> = ({ vehicles, onUpdateZone })
       const rawText = response.text || '';
       // クレンジング: Markdownや「ID:」などの文字を除去
       const cleanedInput = rawText.replace(/[`\s]|ID:|Result:|yard-edit-|yard-v2:/gi, '').trim();
-      
-      console.log("AI Analysis Result:", rawText);
-      console.log("Cleaned Input:", cleanedInput);
 
       if (cleanedInput !== 'NOT_FOUND' && cleanedInput.length > 2) {
         // パイプ区切りのリッチデータが含まれている場合、最初の要素（ID）または2番目（VIN）を使用

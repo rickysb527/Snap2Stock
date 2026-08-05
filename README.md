@@ -1,20 +1,45 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Snap2Stock
 
-# Run and deploy your AI Studio app
+車両ヤードの在庫管理システム。中古車ヤードの入庫・在庫・出庫管理と、Gemini API を使った QR / 車両情報のスキャン読み取りに対応します。
 
-This contains everything you need to run your app locally.
+## 技術スタック
 
-View your app in AI Studio: https://ai.studio/apps/drive/17bYTy6Z0pOUGZ2QfAUw-RBD1Cu1ptKFh
+- [Vite](https://vitejs.dev/) + [React 19](https://react.dev/)（TypeScript）
+- [Tailwind CSS](https://tailwindcss.com/)（CDN 経由）
+- [Google Gemini API](https://ai.google.dev/)（`@google/genai`）— 画像からの車両情報抽出・QR スキャン
+- [lucide-react](https://lucide.dev/)（アイコン） / [xlsx](https://sheetjs.com/)（Excel 入出力）
 
-## Run Locally
+データはブラウザの `localStorage` に保存されます（サーバー不要）。
 
-**Prerequisites:**  Node.js
+## セットアップ
 
+**前提:** Node.js
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+1. 依存関係をインストール:
+   ```bash
+   npm install
+   ```
+2. `.env.local` に Gemini API キーを設定:
+   ```
+   GEMINI_API_KEY=あなたのAPIキー
+   ```
+   > `.env.local` は `.gitignore` 済みです。API キーを git にコミットしないでください。
+3. 開発サーバーを起動:
+   ```bash
+   npm run dev
+   ```
+
+## スクリプト
+
+| コマンド | 内容 |
+|---|---|
+| `npm run dev` | 開発サーバーを起動（ポート 3000） |
+| `npm run build` | 本番ビルドを `dist/` に出力 |
+| `npm run preview` | ビルド成果物をプレビュー |
+
+## 主な機能
+
+- **Dashboard** — 在庫サマリ、本日出庫予定の確認、Excel インポート
+- **Stock List / Yard Map** — 在庫一覧とヤードマップ表示
+- **Vehicle Registration** — ヤードマップから入庫位置を選んで車両登録
+- **QR Scanner** — カメラ / 画像から車両を特定し、ゾーンを更新（Gemini API）

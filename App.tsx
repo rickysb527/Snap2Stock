@@ -110,14 +110,14 @@ const App: React.FC = () => {
           </div>
           <div className="flex flex-col">
             <h1 className="text-xl font-black tracking-tighter text-slate-900 leading-none">Snap2Stock</h1>
-            <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mt-1">Vihecle Stock Management System</span>
+            <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mt-1">Vehicle Stock Management System</span>
           </div>
         </div>
 
         <nav className="flex-1 space-y-2">
           <NavItem id="dashboard" icon={LayoutDashboard} label="Dashboard" />
           <NavItem id="stock" icon={Database} label="Stock List / Yard Map" />
-          <NavItem id="inbound" icon={PlusCircle} label="Vehicle Registeration" />
+          <NavItem id="inbound" icon={PlusCircle} label="Vehicle Registration" />
           <NavItem id="scanner" icon={QrCode} label="QR Scanner" />
         </nav>
 
