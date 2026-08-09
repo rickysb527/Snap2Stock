@@ -1,8 +1,9 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Vehicle } from '../types';
-import { Camera, Loader2, Save, Printer, ClipboardCheck, ChevronDown, ListFilter, Search } from 'lucide-react';
+import { Camera, Loader2, Save, ClipboardCheck, ListFilter, Search } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
+import { isUnassigned } from '../utils';
 
 interface VehicleFormProps {
   initialZone?: string;
@@ -35,13 +36,13 @@ const VehicleForm: React.FC<VehicleFormProps> = ({ initialZone, vehicles, preset
 
   const [isScanning, setIsScanning] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [tempId, setTempId] = useState<string>('');
   const [unassignedSearch, setUnassignedSearch] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const unassignedVehicles = vehicles.filter(v => {
-    const zone = v.Zone || '';
-    return !zone || !/^[A-J]-\d+$/.test(zone);
+    // 配置対象として選択中の車両自身は候補リストに出さない
+    if (presetVehicle && v.id === presetVehicle.id) return false;
+    return isUnassigned(v);
   });
 
   const filteredUnassigned = unassignedVehicles.filter(v => {
@@ -113,7 +114,6 @@ const VehicleForm: React.FC<VehicleFormProps> = ({ initialZone, vehicles, preset
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const finalId = formData.id || Math.random().toString(36).substr(2, 9);
-    setTempId(finalId);
     onSubmit({ ...formData, id: finalId } as Vehicle);
     setIsSubmitted(true);
   };

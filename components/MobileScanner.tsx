@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { Vehicle } from '../types';
-import { MapPin, QrCode, Loader2, Camera, CheckCircle2, AlertCircle, X as CloseIcon, Image as ImageIcon, Info } from 'lucide-react';
+import { MapPin, QrCode, Loader2, Camera, CheckCircle2, X as CloseIcon } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 
 interface MobileScannerProps {

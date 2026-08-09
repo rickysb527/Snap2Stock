@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Vehicle } from '../types';
+import { isUnassigned as isVehicleUnassigned } from '../utils';
 import { 
   ArrowLeft, MapPin, Calendar, Printer, 
   FileCheck, Tag, Info, Building2, 
@@ -15,7 +16,7 @@ interface VehicleDetailProps {
 }
 
 const VehicleDetail: React.FC<VehicleDetailProps> = ({ vehicle, onBack, onDelete, onStartAssignment }) => {
-  const isUnassigned = !vehicle.Zone || !/^[A-J]-\d+$/.test(vehicle.Zone);
+  const isUnassigned = isVehicleUnassigned(vehicle);
 
   const DataRow = ({ icon: Icon, label, value, subValue }: { icon: any, label: string, value: string, subValue?: string }) => (
     <div className="flex items-start gap-6 p-8 rounded-[40px] bg-slate-50/50 border border-slate-100 hover:bg-white hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 group">
