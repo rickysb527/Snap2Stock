@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Map as MapIcon, PlusCircle, QrCode, Database, ChevronRight, LogOut, Bell, Settings, Search } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, QrCode, Database, ChevronRight, LogOut, Bell, Settings, Search } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import StockView from './components/StockView';
 import InboundMapFlow from './components/InboundMapFlow';
@@ -9,6 +9,7 @@ import VehicleDetail from './components/VehicleDetail';
 import TodayOutboundList from './components/TodayOutboundList';
 import { Vehicle } from './types';
 import { INITIAL_VEHICLES } from './constants';
+import { upsertVehicle } from './utils';
 
 type Tab = 'dashboard' | 'stock' | 'inbound' | 'scanner' | 'detail' | 'today-outbound';
 
@@ -19,7 +20,7 @@ const App: React.FC = () => {
     if (saved) {
       try {
         return JSON.parse(saved);
-      } catch (e) {
+      } catch {
         return INITIAL_VEHICLES;
       }
     }
@@ -27,13 +28,16 @@ const App: React.FC = () => {
   });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  // 既存の未配置車両にゾーンを割り当てる際の対象車両
+  const [assignmentVehicleId, setAssignmentVehicleId] = useState<string | null>(null);
 
   useEffect(() => {
     localStorage.setItem('yard_manager_vehicles', JSON.stringify(vehicles));
   }, [vehicles]);
 
-  const addVehicle = (vehicle: Vehicle) => {
-    setVehicles(prev => [vehicle, ...prev]);
+  const handleUpsertVehicle = (vehicle: Vehicle) => {
+    // 既存車両（配置割り当て等）は置換、新規車両は先頭に追加
+    setVehicles(prev => upsertVehicle(prev, vehicle));
   };
 
   const importVehicles = (newVehicles: Vehicle[]) => {
@@ -62,13 +66,26 @@ const App: React.FC = () => {
     setActiveTab('detail');
   };
 
+  // 未配置車両の「配置する」導線: 対象を記憶して登録（配置）画面へ遷移
+  const handleStartAssignment = (vehicle: Vehicle) => {
+    setAssignmentVehicleId(vehicle.id);
+    setActiveTab('inbound');
+  };
+
+  const assignmentVehicle = vehicles.find(v => v.id === assignmentVehicleId);
+
   const NavItem = ({ id, icon: Icon, label }: { id: Tab, icon: any, label: string }) => {
     const isActive = activeTab === id;
     if (id === 'detail' || id === 'today-outbound') return null;
 
     return (
       <button
-        onClick={() => { setActiveTab(id); setIsSidebarOpen(false); }}
+        onClick={() => {
+          // ナビゲーションからの遷移は常に「新規」文脈。配置対象が残らないようクリア
+          if (id === 'inbound') setAssignmentVehicleId(null);
+          setActiveTab(id);
+          setIsSidebarOpen(false);
+        }}
         className={`group relative flex items-center justify-between w-full px-5 py-4 rounded-[24px] transition-all duration-500 ease-out ${
           isActive 
             ? 'bg-slate-900 text-white shadow-[0_20px_40px_-12px_rgba(0,0,0,0.2)] scale-[1.02]' 
@@ -166,7 +183,7 @@ const App: React.FC = () => {
                 vehicles={vehicles} 
                 onNavigateToStock={() => setActiveTab('stock')}
                 onNavigateToTodayOutbound={() => setActiveTab('today-outbound')}
-                onNavigateToInbound={() => setActiveTab('inbound')}
+                onNavigateToInbound={() => { setAssignmentVehicleId(null); setActiveTab('inbound'); }}
                 onNavigateToScanner={() => setActiveTab('scanner')}
                 onImportVehicles={importVehicles}
               />
@@ -179,23 +196,33 @@ const App: React.FC = () => {
               />
             )}
             {activeTab === 'inbound' && (
-              <InboundMapFlow 
+              <InboundMapFlow
                 vehicles={vehicles}
-                onInboundComplete={addVehicle}
+                presetVehicle={assignmentVehicle}
+                onInboundComplete={(v) => {
+                  const wasAssignment = assignmentVehicleId !== null;
+                  handleUpsertVehicle(v);
+                  setAssignmentVehicleId(null);
+                  // 既存車両の配置完了時は、Zone が反映された詳細画面へ戻す
+                  if (wasAssignment) {
+                    setSelectedVehicleId(v.id);
+                    setActiveTab('detail');
+                  }
+                }}
               />
             )}
             {activeTab === 'scanner' && (
-              <MobileScanner 
-                vehicles={vehicles} 
+              <MobileScanner
+                vehicles={vehicles}
                 onUpdateZone={updateZone}
-                onViewDetail={handleViewDetail}
               />
             )}
             {activeTab === 'detail' && selectedVehicle && (
-              <VehicleDetail 
-                vehicle={selectedVehicle} 
-                onBack={() => setActiveTab('stock')} 
+              <VehicleDetail
+                vehicle={selectedVehicle}
+                onBack={() => setActiveTab('stock')}
                 onDelete={deleteVehicle}
+                onStartAssignment={handleStartAssignment}
               />
             )}
             {activeTab === 'today-outbound' && (
