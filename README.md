@@ -1,5 +1,7 @@
 # Snap2Stock
 
+![Snap2Stock logo](src/assets/S2S_logo_full.png)
+
 > **探す前に分かる、AI ヤード在庫管理システム**
 
 中小規模の中古車輸出ヤード向けの在庫管理システムです。Excel 運用を壊さずに、車が「どこにあるか探す時間」をなくすことに特化しています。Gemini API による写真からの車両情報の自動入力と、QR コードを使ったヤード内の位置管理が特徴です。
@@ -111,4 +113,4 @@ Snap2Stock/
 | `npm run preview` | ビルド成果物をプレビュー |
 | `npm run dev:vercel` | 画面とVercel Functionsをローカルで起動 |
 | `npm run typecheck` | TypeScriptの型チェック |
-| `npm test` | APIのテスト（Geminiへの実通信なし） |
+| `npm test` | ゾーン・在庫・APIのテスト（Geminiへの実通信なし） |

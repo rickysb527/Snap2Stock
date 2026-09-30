@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Vehicle } from '../types';
 import { YARD_COLS, YARD_ROWS } from '../constants';
-import { MapPin, Plus, CheckCircle2, X as CloseIcon } from 'lucide-react';
+import { Plus, CheckCircle2, X as CloseIcon } from 'lucide-react';
 import VehicleForm from '../components/VehicleForm';
 
 interface InboundMapFlowProps {
@@ -49,7 +49,7 @@ const InboundMapFlow: React.FC<InboundMapFlowProps> = ({ vehicles, onInboundComp
           initialZone={selectedSlot} 
           onSubmit={(v) => {
             onInboundComplete(v);
-          }} 
+          }}
           onClose={handleFinalClose}
         />
       </div>
@@ -60,9 +60,13 @@ const InboundMapFlow: React.FC<InboundMapFlowProps> = ({ vehicles, onInboundComp
     <div className="space-y-10 animate-in fade-in duration-700">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 max-w-4xl mx-auto">
         <div className="text-left space-y-2">
-          <h2 className="text-4xl font-black tracking-tighter text-slate-900 uppercase italic">Vehicle Registration</h2>
+          <h2 className="text-4xl font-black tracking-tighter text-slate-900 uppercase italic">
+            {presetVehicle ? 'Assign Yard Slot' : 'Vehicle Registration'}
+          </h2>
           <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">
-            Select an available slot to register a new vehicle
+            {presetVehicle
+              ? `Select a slot for ${presetVehicle.Automaker} ${presetVehicle.ModelOfCar}`
+              : 'Select an available slot to register a new vehicle'}
           </p>
         </div>
         <div className="flex items-center gap-4 bg-white px-6 py-4 rounded-2xl border border-slate-100 shadow-sm">
@@ -134,7 +138,9 @@ const InboundMapFlow: React.FC<InboundMapFlowProps> = ({ vehicles, onInboundComp
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-md px-4 animate-in slide-in-from-bottom-5 duration-500 z-50">
           <div className="bg-white rounded-[32px] p-8 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.2)] border border-slate-100 flex flex-col items-center gap-6">
             <div className="text-center">
-              <h4 className="text-xl font-black text-slate-900">「{selectedSlot}」に新規登録しますか？</h4>
+              <h4 className="text-xl font-black text-slate-900">
+                {presetVehicle ? `「${selectedSlot}」に配置しますか？` : `「${selectedSlot}」に新規登録しますか？`}
+              </h4>
               <p className="text-slate-400 font-bold text-xs mt-1 tracking-widest uppercase">Target slot confirmed</p>
             </div>
             <div className="flex gap-4 w-full">
@@ -148,7 +154,7 @@ const InboundMapFlow: React.FC<InboundMapFlowProps> = ({ vehicles, onInboundComp
                 onClick={() => setShowForm(true)}
                 className="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl shadow-blue-500/20 hover:bg-blue-700 transition-all"
               >
-                Yes, Start Photo Scan
+                {presetVehicle ? 'Yes, Assign Here' : 'Yes, Start Photo Scan'}
               </button>
             </div>
           </div>

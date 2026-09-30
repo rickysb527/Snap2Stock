@@ -1,7 +1,7 @@
 import logoUrl from './assets/S2S_logo.png';
 
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Map as MapIcon, PlusCircle, QrCode, Database, ChevronRight, LogOut, Bell, Settings, Search } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, QrCode, Database, ChevronRight, LogOut, Bell, Settings, Search } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import StockView from './pages/StockView';
 import InboundMapFlow from './pages/InboundMapFlow';
@@ -21,7 +21,7 @@ const App: React.FC = () => {
     if (saved) {
       try {
         return JSON.parse(saved);
-      } catch (e) {
+      } catch {
         return INITIAL_VEHICLES;
       }
     }
@@ -196,7 +196,7 @@ const App: React.FC = () => {
               />
             )}
             {activeTab === 'inbound' && (
-              <InboundMapFlow 
+              <InboundMapFlow
                 vehicles={vehicles}
                 presetVehicle={vehicles.find(v => v.id === assignmentVehicleId)}
                 onInboundComplete={(vehicle) => {
@@ -209,15 +209,15 @@ const App: React.FC = () => {
               />
             )}
             {activeTab === 'scanner' && (
-              <MobileScanner 
-                vehicles={vehicles} 
+              <MobileScanner
+                vehicles={vehicles}
                 onUpdateZone={updateZone}
               />
             )}
             {activeTab === 'detail' && selectedVehicle && (
-              <VehicleDetail 
-                vehicle={selectedVehicle} 
-                onBack={() => setActiveTab('stock')} 
+              <VehicleDetail
+                vehicle={selectedVehicle}
+                onBack={() => setActiveTab('stock')}
                 onDelete={deleteVehicle}
                 onStartAssignment={handleStartAssignment}
               />
