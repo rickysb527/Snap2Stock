@@ -3,13 +3,12 @@ import React, { useState } from 'react';
 import { Vehicle } from '../types';
 import { YARD_COLS, YARD_ROWS } from '../constants';
 import { Plus, CheckCircle2, X as CloseIcon } from 'lucide-react';
-import VehicleForm from './VehicleForm';
+import VehicleForm from '../components/VehicleForm';
 
 interface InboundMapFlowProps {
   vehicles: Vehicle[];
-  onInboundComplete: (v: Vehicle) => void;
-  // 既存の未配置車両にゾーンを割り当てる場合に渡される
   presetVehicle?: Vehicle;
+  onInboundComplete: (v: Vehicle) => void;
 }
 
 const InboundMapFlow: React.FC<InboundMapFlowProps> = ({ vehicles, onInboundComplete, presetVehicle }) => {
@@ -44,10 +43,10 @@ const InboundMapFlow: React.FC<InboundMapFlowProps> = ({ vehicles, onInboundComp
             Target Slot: {selectedSlot}
           </div>
         </div>
-        <VehicleForm
-          initialZone={selectedSlot}
+        <VehicleForm 
           vehicles={vehicles}
           presetVehicle={presetVehicle}
+          initialZone={selectedSlot} 
           onSubmit={(v) => {
             onInboundComplete(v);
           }}

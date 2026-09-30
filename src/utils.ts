@@ -1,5 +1,5 @@
-import { Vehicle } from './types';
-import { YARD_COLS, YARD_ROWS } from './constants';
+import type { Vehicle } from './types';
+import { YARD_COLS, YARD_ROWS } from './constants.ts';
 
 /**
  * ヤードのゾーン表記（例: "A-4"）が正しい形式かつ実在する範囲内かを判定する。

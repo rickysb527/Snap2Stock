@@ -1,5 +1,5 @@
 
-import { Vehicle } from './types';
+import type { Vehicle } from './types';
 
 export const INITIAL_VEHICLES: Vehicle[] = [
   {

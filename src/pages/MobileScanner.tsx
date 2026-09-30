@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { Vehicle } from '../types';
 import { MapPin, QrCode, Loader2, Camera, CheckCircle2, X as CloseIcon } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
+import { analyzeImage } from '../services/imageAnalysis';
 
 interface MobileScannerProps {
   vehicles: Vehicle[];
@@ -27,24 +27,7 @@ const MobileScanner: React.FC<MobileScannerProps> = ({ vehicles, onUpdateZone })
     setIsAnalyzing(true);
 
     try {
-      const reader = new FileReader();
-      const base64Promise = new Promise<string>((resolve) => {
-        reader.onload = () => resolve((reader.result as string).split(',')[1]);
-        reader.readAsDataURL(file);
-      });
-      const base64 = await base64Promise;
-
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: {
-          parts: [
-            { text: "Identify the vehicle in this image. \n1. Primary: Extract data from the QR code. It may contain a simple ID 'yard-edit-ID' or a detailed string 'yard-v2:ID|VIN|MAKER|MODEL'. \n2. Secondary: If no QR, look for a VIN plate or license plate. \nReturn ONLY the most specific identification found (the ID from the QR, the full VIN, or the plate number). No extra text." },
-            { inlineData: { data: base64, mimeType: file.type } }
-          ]
-        },
-      });
-
+      const response = await analyzeImage(file, 'identify');
       const rawText = response.text || '';
       // クレンジング: Markdownや「ID:」などの文字を除去
       const cleanedInput = rawText.replace(/[`\s]|ID:|Result:|yard-edit-|yard-v2:/gi, '').trim();
@@ -81,7 +64,7 @@ const MobileScanner: React.FC<MobileScannerProps> = ({ vehicles, onUpdateZone })
       }
     } catch (err) {
       console.error("Analysis Error:", err);
-      alert("AI解析中にエラーが発生しました。");
+      alert(err instanceof Error ? err.message : '画像解析に失敗しました。');
     } finally {
       setIsAnalyzing(false);
     }

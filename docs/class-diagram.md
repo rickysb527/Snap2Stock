@@ -6,14 +6,14 @@ Reactの関数コンポーネントとTypeScriptのinterfaceをUMLのクラス�
 
 ## 根拠
 
-- `types.ts`: Vehicleの全14属性。すべてstring。
-- `App.tsx`: 在庫状態・画面遷移・追加更新・Excel取込データ追加・ゾーン更新・削除・localStorage保存。
-- `components/Dashboard.tsx`: xlsxによるExcel/CSV取込と出庫予定集計。
-- `components/StockView.tsx`, `components/YardMap.tsx`: 在庫検索・地図表示・QR画像取得。
-- `components/InboundMapFlow.tsx`, `components/VehicleForm.tsx`: 空き区画選択・新規登録・未配置車両への配置・Geminiの写真入力補助。
-- `components/MobileScanner.tsx`: Geminiによる画像認識・ID/VIN照合・ゾーン更新。
-- `components/VehicleDetail.tsx`, `components/TodayOutboundList.tsx`: 詳細・QR印刷・本日出庫予定・出庫処理。
-- `utils.ts`, `constants.tsx`: upsert、ゾーン判定、100区画の定義。
+- `src/types.ts`: Vehicleの全14属性。すべてstring。
+- `src/App.tsx`: 在庫状態・画面遷移・追加更新・Excel取込データ追加・ゾーン更新・削除・localStorage保存。
+- `src/pages/Dashboard.tsx`: xlsxによるExcel/CSV取込と出庫予定集計。
+- `src/pages/StockView.tsx`, `src/components/YardMap.tsx`: 在庫検索・地図表示・QR画像取得。
+- `src/pages/InboundMapFlow.tsx`, `src/components/VehicleForm.tsx`: 空き区画選択・新規登録・未配置車両への配置・Geminiの写真入力補助。
+- `src/pages/MobileScanner.tsx`: Geminiによる画像認識・ID/VIN照合・ゾーン更新。
+- `src/pages/VehicleDetail.tsx`, `src/pages/TodayOutboundList.tsx`: 詳細・QR印刷・本日出庫予定・出庫処理。
+- `src/utils.ts`, `src/constants.ts`: upsert、ゾーン判定、100区画の定義。
 
 ## 要件検討の際に区別する点
 

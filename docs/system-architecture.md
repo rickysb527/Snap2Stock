@@ -13,4 +13,4 @@
 
 バックエンド、サーバーDB、認証、複数端末同期は現行実装にありません。GeminiキーはViteのdefineでアプリに組み込まれ、ブラウザから直接APIを呼び出す構成です。
 
-根拠: package.json、vite.config.ts、index.html、index.tsx、App.tsx、components/Dashboard.tsx、components/VehicleForm.tsx、components/MobileScanner.tsx、components/VehicleDetail.tsx、components/StockView.tsx。
+根拠: package.json、vite.config.ts、index.html、src/main.tsx、src/App.tsx、src/pages/Dashboard.tsx、src/components/VehicleForm.tsx、src/pages/MobileScanner.tsx、src/pages/VehicleDetail.tsx、src/pages/StockView.tsx。

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { Vehicle } from './types';
-import { isValidZone, isUnassigned, upsertVehicle } from './utils';
+import { Vehicle } from '../src/types';
+import { isValidZone, isUnassigned, upsertVehicle } from '../src/utils';
 
 const makeVehicle = (overrides: Partial<Vehicle> = {}): Vehicle => ({
   id: 'v1',

@@ -1,6 +1,6 @@
 # Snap2Stock
 
-![Snap2Stock logo](images/S2S_logo_full.png)
+![Snap2Stock logo](src/assets/S2S_logo_full.png)
 
 > **探す前に分かる、AI ヤード在庫管理システム**
 
@@ -52,11 +52,41 @@ Snap2Stock は、大企業向けの高精度管理と、中小ヤードの属人
 - [Google Gemini API](https://ai.google.dev/)（`@google/genai`）— 画像からの車両情報抽出・QR スキャン
 - [lucide-react](https://lucide.dev/)（アイコン） / [xlsx](https://sheetjs.com/)（Excel 入出力）
 
-データはブラウザの `localStorage` に保存されます（サーバー不要）。
+車両データはブラウザの `localStorage` に保存されます。画像解析は `api/analyze.ts` のVercel Function経由でGemini APIを呼び出します。
+
+## ディレクトリ構成
+
+```text
+Snap2Stock/
+├── api/                 # サーバー側：Vercel Functions
+│   └── analyze.ts
+├── src/                 # ブラウザ側のReactアプリ
+│   ├── App.tsx
+│   ├── main.tsx         # アプリのエントリーポイント
+│   ├── pages/           # Dashboard・在庫一覧・入庫・スキャナーなどの画面
+│   ├── components/      # VehicleForm・YardMapなど画面内の部品
+│   ├── services/        # 画像解析APIの呼び出し
+│   ├── assets/          # ロゴなど、ビルドに含める画像
+│   ├── types.ts
+│   ├── constants.ts
+│   └── vite-env.d.ts
+├── tests/               # APIのテスト
+├── docs/                # 発表資料・draw.io図
+├── index.html
+├── vite.config.ts
+├── vercel.json
+├── tsconfig.json
+├── package.json
+├── package-lock.json
+├── .env.example         # 値を含まない環境変数のひな形
+└── .env.local           # ローカルの秘密情報（Git管理対象外）
+```
+
+`@/` のエイリアスは `src/` を指します。GeminiのSDKと秘密のAPIキーはサーバー側でのみ使用し、フロントエンドにはAPI呼び出し処理を置きます。
 
 ## セットアップ
 
-**前提:** Node.js
+**前提:** Node.js 22.13以降（テストでTypeScriptの型除去機能を使用）
 
 1. 依存関係をインストール:
    ```bash
@@ -72,6 +102,8 @@ Snap2Stock は、大企業向けの高精度管理と、中小ヤードの属人
    npm run dev
    ```
 
+`npm run dev` は画面だけを起動します。Vercel Functionsを含めて画像解析を試す場合は `npm run dev:vercel` を使用します（Vercel CLIの取得とアカウント接続が必要です）。キーを設定しなくても画面は利用できますが、画像解析は未設定エラーになります。本番のキーはVercelの環境変数に登録します。
+
 ## スクリプト
 
 | コマンド | 内容 |
@@ -79,3 +111,6 @@ Snap2Stock は、大企業向けの高精度管理と、中小ヤードの属人
 | `npm run dev` | 開発サーバーを起動（ポート 3000） |
 | `npm run build` | 本番ビルドを `dist/` に出力 |
 | `npm run preview` | ビルド成果物をプレビュー |
+| `npm run dev:vercel` | 画面とVercel Functionsをローカルで起動 |
+| `npm run typecheck` | TypeScriptの型チェック |
+| `npm test` | ゾーン・在庫・APIのテスト（Geminiへの実通信なし） |
