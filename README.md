@@ -8,6 +8,8 @@
 
 > 2025/12/20 – 2025/12/21 に開催された技育 CAMP ハッカソンでの成果物です。
 
+🌐 **[デモを試す](https://snap2stock-9w7mgrnak-rikigoto0310-2143.vercel.app/)**
+
 📄 **[発表スライド（PDF）](docs/Snap2Stock-presentation.pdf)** — プロダクトの背景・機能・競合比較をまとめた発表資料です。
 
 ## 背景・課題
