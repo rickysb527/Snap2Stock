@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Vehicle } from '../types';
 import { YARD_COLS, YARD_ROWS } from '../constants';
 import { MapPin, Plus, CheckCircle2, X as CloseIcon } from 'lucide-react';
-import VehicleForm from './VehicleForm';
+import VehicleForm from '../components/VehicleForm';
 
 interface InboundMapFlowProps {
   vehicles: Vehicle[];

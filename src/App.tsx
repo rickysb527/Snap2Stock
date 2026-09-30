@@ -1,12 +1,13 @@
+import logoUrl from './assets/S2S_logo.png';
 
 import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, Map as MapIcon, PlusCircle, QrCode, Database, ChevronRight, LogOut, Bell, Settings, Search } from 'lucide-react';
-import Dashboard from './components/Dashboard';
-import StockView from './components/StockView';
-import InboundMapFlow from './components/InboundMapFlow';
-import MobileScanner from './components/MobileScanner';
-import VehicleDetail from './components/VehicleDetail';
-import TodayOutboundList from './components/TodayOutboundList';
+import Dashboard from './pages/Dashboard';
+import StockView from './pages/StockView';
+import InboundMapFlow from './pages/InboundMapFlow';
+import MobileScanner from './pages/MobileScanner';
+import VehicleDetail from './pages/VehicleDetail';
+import TodayOutboundList from './pages/TodayOutboundList';
 import { Vehicle } from './types';
 import { INITIAL_VEHICLES } from './constants';
 
@@ -103,7 +104,7 @@ const App: React.FC = () => {
         <div className="flex items-center space-x-4 mb-14 px-2">
           <div className="w-12 h-12 rounded-[18px] overflow-hidden shadow-2xl bg-white">
             <img
-              src="/images/S2S_logo.png"
+              src={logoUrl}
               alt="Snap2Stock Logo"
               className="w-full h-full object-contain"
             />

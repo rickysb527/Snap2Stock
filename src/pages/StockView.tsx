@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Vehicle } from '../types';
 import { MapPin, Printer, Search, List, Map as MapIcon, QrCode, X as CloseIcon, ChevronRight, Trash2 } from 'lucide-react';
-import YardMap from './YardMap';
+import YardMap from '../components/YardMap';
 
 interface StockViewProps {
   vehicles: Vehicle[];
