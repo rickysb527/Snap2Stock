@@ -40,6 +40,7 @@ const VehicleForm: React.FC<VehicleFormProps> = ({ initialZone, vehicles, preset
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const unassignedVehicles = vehicles.filter(v => {
+    if (v.id === presetVehicle?.id) return false;
     const zone = v.Zone || '';
     return !zone || !/^[A-J]-\d+$/.test(zone);
   });

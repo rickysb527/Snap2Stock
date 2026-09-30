@@ -7,10 +7,11 @@ import VehicleForm from '../components/VehicleForm';
 
 interface InboundMapFlowProps {
   vehicles: Vehicle[];
+  presetVehicle?: Vehicle;
   onInboundComplete: (v: Vehicle) => void;
 }
 
-const InboundMapFlow: React.FC<InboundMapFlowProps> = ({ vehicles, onInboundComplete }) => {
+const InboundMapFlow: React.FC<InboundMapFlowProps> = ({ vehicles, onInboundComplete, presetVehicle }) => {
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
 
@@ -43,6 +44,8 @@ const InboundMapFlow: React.FC<InboundMapFlowProps> = ({ vehicles, onInboundComp
           </div>
         </div>
         <VehicleForm 
+          vehicles={vehicles}
+          presetVehicle={presetVehicle}
           initialZone={selectedSlot} 
           onSubmit={(v) => {
             onInboundComplete(v);

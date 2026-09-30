@@ -10,6 +10,7 @@ import VehicleDetail from './pages/VehicleDetail';
 import TodayOutboundList from './pages/TodayOutboundList';
 import { Vehicle } from './types';
 import { INITIAL_VEHICLES } from './constants';
+import { upsertVehicle } from './utils';
 
 type Tab = 'dashboard' | 'stock' | 'inbound' | 'scanner' | 'detail' | 'today-outbound';
 
@@ -28,13 +29,14 @@ const App: React.FC = () => {
   });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  const [assignmentVehicleId, setAssignmentVehicleId] = useState<string | null>(null);
 
   useEffect(() => {
     localStorage.setItem('yard_manager_vehicles', JSON.stringify(vehicles));
   }, [vehicles]);
 
   const addVehicle = (vehicle: Vehicle) => {
-    setVehicles(prev => [vehicle, ...prev]);
+    setVehicles(prev => upsertVehicle(prev, vehicle));
   };
 
   const importVehicles = (newVehicles: Vehicle[]) => {
@@ -63,13 +65,27 @@ const App: React.FC = () => {
     setActiveTab('detail');
   };
 
+  const handleStartAssignment = (vehicle: Vehicle) => {
+    setAssignmentVehicleId(vehicle.id);
+    setActiveTab('inbound');
+  };
+
+  const handleNewInbound = () => {
+    setAssignmentVehicleId(null);
+    setActiveTab('inbound');
+  };
+
   const NavItem = ({ id, icon: Icon, label }: { id: Tab, icon: any, label: string }) => {
     const isActive = activeTab === id;
     if (id === 'detail' || id === 'today-outbound') return null;
 
     return (
       <button
-        onClick={() => { setActiveTab(id); setIsSidebarOpen(false); }}
+        onClick={() => {
+          setAssignmentVehicleId(null);
+          setActiveTab(id);
+          setIsSidebarOpen(false);
+        }}
         className={`group relative flex items-center justify-between w-full px-5 py-4 rounded-[24px] transition-all duration-500 ease-out ${
           isActive 
             ? 'bg-slate-900 text-white shadow-[0_20px_40px_-12px_rgba(0,0,0,0.2)] scale-[1.02]' 
@@ -167,7 +183,7 @@ const App: React.FC = () => {
                 vehicles={vehicles} 
                 onNavigateToStock={() => setActiveTab('stock')}
                 onNavigateToTodayOutbound={() => setActiveTab('today-outbound')}
-                onNavigateToInbound={() => setActiveTab('inbound')}
+                onNavigateToInbound={handleNewInbound}
                 onNavigateToScanner={() => setActiveTab('scanner')}
                 onImportVehicles={importVehicles}
               />
@@ -182,14 +198,20 @@ const App: React.FC = () => {
             {activeTab === 'inbound' && (
               <InboundMapFlow 
                 vehicles={vehicles}
-                onInboundComplete={addVehicle}
+                presetVehicle={vehicles.find(v => v.id === assignmentVehicleId)}
+                onInboundComplete={(vehicle) => {
+                  addVehicle(vehicle);
+                  if (assignmentVehicleId !== null) {
+                    setAssignmentVehicleId(null);
+                    handleViewDetail(vehicle.id);
+                  }
+                }}
               />
             )}
             {activeTab === 'scanner' && (
               <MobileScanner 
                 vehicles={vehicles} 
                 onUpdateZone={updateZone}
-                onViewDetail={handleViewDetail}
               />
             )}
             {activeTab === 'detail' && selectedVehicle && (
@@ -197,6 +219,7 @@ const App: React.FC = () => {
                 vehicle={selectedVehicle} 
                 onBack={() => setActiveTab('stock')} 
                 onDelete={deleteVehicle}
+                onStartAssignment={handleStartAssignment}
               />
             )}
             {activeTab === 'today-outbound' && (
