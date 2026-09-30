@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Vehicle } from '../types';
 import { Camera, Loader2, Save, Printer, ClipboardCheck, ChevronDown, ListFilter, Search } from 'lucide-react';
-import { GoogleGenAI, Type } from "@google/genai";
+import { analyzeImage } from '../services/imageAnalysis';
 
 interface VehicleFormProps {
   initialZone?: string;
@@ -64,48 +64,11 @@ const VehicleForm: React.FC<VehicleFormProps> = ({ initialZone, vehicles, preset
 
     setIsScanning(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const reader = new FileReader();
-      const base64Promise = new Promise<string>((resolve) => {
-        reader.onload = () => resolve((reader.result as string).split(',')[1]);
-        reader.readAsDataURL(file);
-      });
-      const base64 = await base64Promise;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: {
-          parts: [
-            { text: "Extract car details: Automaker, ModelOfCar, Color, Year, NumberPlate. Return ONLY valid JSON." },
-            { inlineData: { data: base64, mimeType: file.type } }
-          ]
-        },
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              Automaker: { type: Type.STRING },
-              ModelOfCar: { type: Type.STRING },
-              Color: { type: Type.STRING },
-              Year: { type: Type.STRING },
-              NumberPlate: { type: Type.STRING }
-            }
-          },
-          thinkingConfig: { thinkingBudget: 0 }
-        }
-      });
-
-      // JSON文字列をクレンジング (```json ... ``` を除去)
-      let text = response.text || "{}";
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) text = jsonMatch[0];
-      
-      const result = JSON.parse(text);
+      const { vehicle: result } = await analyzeImage(file, 'vehicle');
       setFormData(prev => ({ ...prev, ...result }));
     } catch (error) {
       console.error("AI Analysis Error:", error);
-      alert("AI analysis failed. Please ensure the photo is clear.");
+      alert(error instanceof Error ? error.message : '画像解析に失敗しました。');
     } finally {
       setIsScanning(false);
     }
