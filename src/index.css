@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background-color: #F6F8FA;
+  color: #1F2937;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #D8DEE7;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #596579;
+}
+
+/* 仕様書5章: フォーカス表示を設ける。Tailwindの outline-none を使った
+   要素でも、キーボード操作時は視認できるフォーカスリングを表示する。 */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #2563EB;
+  outline-offset: 2px;
+}

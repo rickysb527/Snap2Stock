@@ -1,17 +1,26 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Vehicle } from '../types';
-import { Camera, Loader2, Save, ClipboardCheck, ListFilter, Search } from 'lucide-react';
+import { Camera, Loader2, ClipboardCheck, ListFilter, Search } from 'lucide-react';
 import { analyzeImage } from '../services/imageAnalysis';
 import { isUnassigned } from '../utils';
 
 interface VehicleFormProps {
   initialZone?: string;
-  vehicles: Vehicle[]; 
+  vehicles: Vehicle[];
   presetVehicle?: Vehicle;
   onSubmit: (vehicle: Vehicle) => void;
   onClose?: () => void;
 }
+
+type FieldDef = {
+  id: keyof Vehicle;
+  label: string;
+  type: 'text' | 'date' | 'select';
+  required?: boolean;
+  options?: string[];
+  readOnly?: boolean;
+};
 
 const VehicleForm: React.FC<VehicleFormProps> = ({ initialZone, vehicles, presetVehicle, onSubmit, onClose }) => {
   const currentYear = new Date().getFullYear();
@@ -35,6 +44,7 @@ const VehicleForm: React.FC<VehicleFormProps> = ({ initialZone, vehicles, preset
   });
 
   const [isScanning, setIsScanning] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [unassignedSearch, setUnassignedSearch] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -66,7 +76,7 @@ const VehicleForm: React.FC<VehicleFormProps> = ({ initialZone, vehicles, preset
       const { vehicle: result } = await analyzeImage(file, 'vehicle');
       setFormData(prev => ({ ...prev, ...result }));
     } catch (error) {
-      console.error("AI Analysis Error:", error);
+      console.error('AI Analysis Error:', error);
       alert(error instanceof Error ? error.message : '画像解析に失敗しました。');
     } finally {
       setIsScanning(false);
@@ -75,98 +85,168 @@ const VehicleForm: React.FC<VehicleFormProps> = ({ initialZone, vehicles, preset
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     const finalId = formData.id || Math.random().toString(36).substr(2, 9);
     onSubmit({ ...formData, id: finalId } as Vehicle);
     setIsSubmitted(true);
   };
 
-  const fields = [
-    { id: 'Zone', label: 'Yard Slot', type: 'text', readOnly: !!initialZone },
-    { id: 'DateOfReceipt', label: 'Date Received', type: 'date' },
-    { id: 'CompanyName', label: 'Company Name', type: 'text' },
-    { id: 'Automaker', label: 'Maker', type: 'select', options: ['Toyota', 'Nissan', 'Honda', 'Mazda', 'Mitsubishi', 'Subaru', 'Suzuki', 'Daihatsu', 'Mercedes-Benz', 'BMW', 'Audi', 'Volkswagen', 'Other'] },
-    { id: 'ModelOfCar', label: 'Model', type: 'text' },
-    { id: 'VIN', label: 'VIN / Chassis ID', type: 'text' },
-    { id: 'Year', label: 'Year', type: 'select', options: years },
-    { id: 'Color', label: 'Color', type: 'select', options: ['White', 'Black', 'Silver', 'Pearl', 'Grey', 'Blue', 'Red', 'Green', 'Gold', 'Brown', 'Other'] },
-    { id: 'NumberPlate', label: 'Plate', type: 'text' },
-    { id: 'Destination', label: 'Destination', type: 'select', options: ['Kenya', 'Dubai', 'Tanzania', 'Pakistan', 'Uganda', 'Zambia', 'Mongolia', 'Other'] },
-    { id: 'Document', label: 'Docs Status', type: 'select', options: ['OK', 'Pending', 'Missing'] },
-    { id: 'ShippingDate', label: 'Shipping Date', type: 'date' },
+  const basicFields: FieldDef[] = [
+    { id: 'Automaker', label: 'メーカー', type: 'select', required: true, options: ['Toyota', 'Nissan', 'Honda', 'Mazda', 'Mitsubishi', 'Subaru', 'Suzuki', 'Daihatsu', 'Mercedes-Benz', 'BMW', 'Audi', 'Volkswagen', 'Other'] },
+    { id: 'ModelOfCar', label: '車名', type: 'text', required: true },
+    { id: 'VIN', label: '車体番号', type: 'text', required: true },
+    { id: 'NumberPlate', label: 'ナンバー', type: 'text' },
+    { id: 'Year', label: '年式', type: 'select', options: years },
+    { id: 'Color', label: '色', type: 'select', options: ['White', 'Black', 'Silver', 'Pearl', 'Grey', 'Blue', 'Red', 'Green', 'Gold', 'Brown', 'Other'] },
   ];
 
+  const managementFields: FieldDef[] = [
+    { id: 'DateOfReceipt', label: '入庫日', type: 'date' },
+    { id: 'CompanyName', label: '会社', type: 'text' },
+    { id: 'Destination', label: '輸出先', type: 'select', options: ['Kenya', 'Dubai', 'Tanzania', 'Pakistan', 'Uganda', 'Zambia', 'Mongolia', 'Other'] },
+    { id: 'Document', label: '書類状況', type: 'select', options: ['OK', 'Pending', 'Missing'] },
+    { id: 'ShippingDate', label: '出荷予定日', type: 'date' },
+  ];
+
+  const renderField = (field: FieldDef) => (
+    <div key={field.id} className="space-y-1.5">
+      <label htmlFor={field.id} className="text-xs font-medium text-ink-muted">
+        {field.label}{field.required && <span className="text-danger-text ml-0.5">必須</span>}
+      </label>
+      {field.type === 'select' ? (
+        <select
+          id={field.id}
+          required={field.required}
+          value={(formData as any)[field.id] || ''}
+          className="w-full px-3 py-2.5 bg-page border border-line rounded-control focus:bg-surface focus:border-primary outline-none text-sm text-ink"
+          onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+        >
+          <option value="">選択してください</option>
+          {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+        </select>
+      ) : (
+        <input
+          id={field.id}
+          type={field.type}
+          required={field.required}
+          value={(formData as any)[field.id] || ''}
+          readOnly={field.readOnly}
+          className={`w-full px-3 py-2.5 bg-page border border-line rounded-control focus:bg-surface focus:border-primary outline-none text-sm text-ink ${field.readOnly ? 'opacity-60' : ''}`}
+          onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+        />
+      )}
+    </div>
+  );
+
   return (
-    <div className="relative min-h-[600px] pb-10">
-      <div className={`max-w-5xl mx-auto space-y-8 transition-all duration-700 ${isSubmitted ? 'blur-xl opacity-20 pointer-events-none' : 'animate-in fade-in'}`}>
-        
-        {/* 未割り当てリストの表示 - 常に表示されるように修正 */}
+    <div className="relative pb-6">
+      <div className={`space-y-6 transition-opacity ${isSubmitted ? 'opacity-20 pointer-events-none' : ''}`}>
         {unassignedVehicles.length > 0 && (
-          <div className="bg-blue-600 rounded-[40px] p-8 text-white shadow-xl shadow-blue-500/20">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <ListFilter size={24} />
-                <h4 className="text-xl font-black tracking-tight uppercase italic">Imported (Unassigned) List</h4>
+          <div className="bg-selected border border-primary/20 rounded-section p-5">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+              <div className="flex items-center gap-2">
+                <ListFilter size={18} className="text-primary" />
+                <h4 className="text-sm font-bold text-ink">未配置の車両から選択</h4>
               </div>
-              <div className="relative w-64">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-300" size={16} />
-                <input type="text" placeholder="Search..." className="w-full bg-blue-700/50 border-none rounded-xl py-2 pl-10 text-xs font-bold text-white outline-none focus:ring-2 ring-blue-400" value={unassignedSearch} onChange={(e) => setUnassignedSearch(e.target.value)} />
+              <div className="relative w-56">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" size={14} />
+                <label htmlFor="unassigned-search" className="sr-only">未配置車両を検索</label>
+                <input
+                  id="unassigned-search"
+                  type="text"
+                  placeholder="検索"
+                  className="w-full bg-surface border border-line rounded-control py-1.5 pl-8 text-xs text-ink outline-none focus:border-primary"
+                  value={unassignedSearch}
+                  onChange={(e) => setUnassignedSearch(e.target.value)}
+                />
               </div>
             </div>
-            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+            <div className="flex gap-3 overflow-x-auto pb-1">
               {filteredUnassigned.map(v => (
-                <button key={v.id} type="button" onClick={() => selectUnassigned(v)} className={`flex-shrink-0 w-64 border rounded-2xl p-5 text-left transition-all active:scale-95 ${formData.id === v.id ? 'bg-white border-white' : 'bg-white/10 border-white/20 hover:bg-white/20'}`}>
-                  <p className={`text-[10px] font-black uppercase mb-1 ${formData.id === v.id ? 'text-blue-600' : 'text-blue-200'}`}>{v.Automaker || 'Unknown'}</p>
-                  <h5 className={`font-black text-lg truncate ${formData.id === v.id ? 'text-slate-900' : 'text-white'}`}>{v.ModelOfCar || 'No Name'}</h5>
-                  <p className={`text-[9px] font-mono mt-2 opacity-60 truncate ${formData.id === v.id ? 'text-slate-400' : 'text-blue-100'}`}>{v.VIN || 'No VIN'}</p>
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => selectUnassigned(v)}
+                  className={`flex-shrink-0 w-56 border rounded-control p-4 text-left transition-colors ${formData.id === v.id ? 'bg-primary border-primary text-white' : 'bg-surface border-line hover:border-primary/50'}`}
+                >
+                  <p className={`text-xs font-medium mb-1 ${formData.id === v.id ? 'text-white/80' : 'text-ink-muted'}`}>{v.Automaker || '不明'}</p>
+                  <p className={`font-semibold text-sm truncate ${formData.id === v.id ? 'text-white' : 'text-ink'}`}>{v.ModelOfCar || '車名未入力'}</p>
+                  <p className={`text-xs font-mono mt-1 truncate ${formData.id === v.id ? 'text-white/70' : 'text-ink-muted'}`}>{v.VIN || '車体番号未入力'}</p>
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        <div className="bg-white rounded-[40px] border border-slate-100 shadow-2xl overflow-hidden">
-          <div className="bg-slate-900 p-8 lg:p-12 text-white flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="bg-surface rounded-section border border-line overflow-hidden">
+          <div className="p-5 border-b border-line flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h3 className="text-3xl font-black tracking-tighter uppercase italic">Manual Entry / AI Scan</h3>
-              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-1">Target Slot: {formData.Zone}</p>
+              <h3 className="text-base font-bold text-ink">手入力 / 写真から入力</h3>
+              <p className="text-xs text-ink-muted mt-1">写真から入力しても、内容は登録前に確認・修正できます。</p>
             </div>
-            <div className="flex gap-4">
+            <div>
               <input type="file" accept="image/*" capture="environment" className="hidden" ref={fileInputRef} onChange={handleAIAnalysis} />
-              <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isScanning} className="px-8 py-4 bg-blue-600 hover:bg-blue-500 rounded-2xl font-black uppercase text-[11px] tracking-widest flex items-center gap-3 transition-all">
-                {isScanning ? <Loader2 className="animate-spin" size={18} /> : <Camera size={18} />}
-                {isScanning ? 'ANALYZING...' : 'PHOTO AUTO-FILL'}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isScanning}
+                className="px-5 py-2.5 bg-page border border-line rounded-control text-sm font-medium text-ink hover:bg-selected transition-colors flex items-center gap-2 disabled:opacity-60"
+              >
+                {isScanning ? <Loader2 className="animate-spin" size={16} /> : <Camera size={16} />}
+                {isScanning ? '解析中...' : '写真から入力'}
               </button>
             </div>
           </div>
-          <form onSubmit={handleSubmit} className="p-10 lg:p-14">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {fields.map(field => (
-                <div key={field.id} className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{field.label}</label>
-                  <div className="relative">
-                    {field.type === 'select' ? (
-                      <select value={(formData as any)[field.id] || ''} className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white outline-none font-bold text-slate-700 appearance-none" onChange={(e) => setFormData({...formData, [field.id]: e.target.value})}>
-                        <option value="">Select {field.label}</option>
-                        {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                      </select>
-                    ) : (
-                      <input type={field.type} value={(formData as any)[field.id] || ''} readOnly={field.readOnly} className={`w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white outline-none font-bold text-slate-700 ${field.readOnly ? 'opacity-50' : ''}`} onChange={(e) => setFormData({...formData, [field.id]: e.target.value})} />
-                    )}
-                  </div>
-                </div>
-              ))}
+
+          <form onSubmit={handleSubmit} className="p-5 space-y-8">
+            <div>
+              <h4 className="text-sm font-bold text-ink mb-4">基本情報</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {basicFields.map(renderField)}
+              </div>
             </div>
-            <div className="mt-12"><button type="submit" className="w-full px-12 py-5 bg-slate-900 text-white rounded-2xl font-black uppercase text-[12px] tracking-widest shadow-xl hover:bg-black transition-all flex items-center justify-center gap-3"><Save size={18} />Confirm and Save</button></div>
+
+            <div>
+              <h4 className="text-sm font-bold text-ink mb-4">管理・出荷情報</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {managementFields.map(renderField)}
+              </div>
+            </div>
+
+            <div className="flex gap-3 justify-end pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-6 py-3 rounded-control text-sm font-medium text-ink-muted hover:bg-page transition-colors"
+              >
+                キャンセル
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-8 py-3 bg-primary text-white rounded-control text-sm font-medium hover:bg-primary-hover transition-colors disabled:opacity-60"
+              >
+                登録する
+              </button>
+            </div>
           </form>
         </div>
       </div>
 
       {isSubmitted && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-slate-900/10 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-md bg-white rounded-[48px] p-10 shadow-2xl flex flex-col items-center gap-8">
-            <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center"><ClipboardCheck size={40} className="animate-bounce" /></div>
-            <div className="text-center space-y-2"><h4 className="text-2xl font-black text-slate-900 tracking-tighter">Registration Complete!</h4><p className="text-slate-400 font-bold text-[10px] uppercase">Registered to Slot {formData.Zone}</p></div>
-            <button onClick={onClose} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest">Back to Map</button>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-ink/20">
+          <div className="w-full max-w-sm bg-surface rounded-section p-8 shadow-xl flex flex-col items-center gap-5">
+            <div className="w-16 h-16 bg-success-bg text-success-text rounded-full flex items-center justify-center">
+              <ClipboardCheck size={32} />
+            </div>
+            <div className="text-center space-y-1">
+              <h4 className="text-lg font-bold text-ink">登録が完了しました</h4>
+              <p className="text-xs text-ink-muted">保管場所：{formData.Zone}</p>
+            </div>
+            <button onClick={onClose} className="w-full py-3 bg-ink text-white rounded-control text-sm font-medium hover:bg-primary transition-colors">
+              マップに戻る
+            </button>
           </div>
         </div>
       )}

@@ -1,16 +1,18 @@
 
 import React from 'react';
 import { Vehicle } from '../types';
-import { ArrowLeft, Clock, MapPin, ArrowRight, CheckCircle } from 'lucide-react';
+import { ArrowLeft, MapPin, CheckCircle, Clock } from 'lucide-react';
+import { documentLabel, documentToneClass } from '../utils';
 
 interface TodayOutboundListProps {
   vehicles: Vehicle[];
   onViewDetail: (id: string) => void;
   onBack: () => void;
   onDeleteVehicle: (id: string) => void;
+  onShowOnMap: (vin: string) => void;
 }
 
-const TodayOutboundList: React.FC<TodayOutboundListProps> = ({ vehicles, onViewDetail, onBack, onDeleteVehicle }) => {
+const TodayOutboundList: React.FC<TodayOutboundListProps> = ({ vehicles, onViewDetail, onBack, onDeleteVehicle, onShowOnMap }) => {
   const today = new Date().toISOString().split('T')[0];
   const outboundToday = vehicles.filter(v => v.ShippingDate === today);
 
@@ -20,80 +22,130 @@ const TodayOutboundList: React.FC<TodayOutboundListProps> = ({ vehicles, onViewD
   };
 
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-left duration-700">
-      <div className="flex items-center justify-between">
-        <div>
-          <button 
-            onClick={onBack}
-            className="mb-6 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-colors"
-          >
-            <ArrowLeft size={12} /> Dashboard
-          </button>
-          <h2 className="text-4xl font-black tracking-tighter text-slate-900 flex items-center gap-4">
-            Today's Outbound Schedule
-            <span className="text-sm bg-amber-100 text-amber-600 px-4 py-1 rounded-full uppercase tracking-widest">{today}</span>
-          </h2>
-          <p className="text-slate-400 font-bold mt-2 uppercase tracking-widest text-xs">Total {outboundToday.length} units flagged for shipping today</p>
+    <div className="space-y-6">
+      <div>
+        <button
+          onClick={onBack}
+          className="mb-4 flex items-center gap-2 text-sm font-medium text-ink-muted hover:text-ink transition-colors"
+        >
+          <ArrowLeft size={14} aria-hidden="true" /> ダッシュボードに戻る
+        </button>
+        <div className="flex items-baseline gap-3">
+          <h2 className="text-2xl font-bold text-ink">出荷予定</h2>
+          <span className="text-sm text-ink-muted">{today} / {outboundToday.length}台</span>
         </div>
       </div>
 
       {outboundToday.length === 0 ? (
-        <div className="bg-slate-50 rounded-[48px] p-20 text-center border-2 border-dashed border-slate-200">
-          <Clock className="mx-auto text-slate-300 mb-6" size={64} />
-          <h3 className="text-xl font-black text-slate-900">本日出荷予定の車両はありません</h3>
-          <p className="text-slate-400 font-medium mt-2">すべての出荷予定車両が処理済みか、スケジュールがありません。</p>
+        <div className="bg-surface rounded-section border border-dashed border-line p-16 text-center">
+          <Clock className="mx-auto text-line mb-4" size={40} aria-hidden="true" />
+          <p className="font-medium text-ink">本日の出荷予定はありません</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {outboundToday.map(v => (
-            <div key={v.id} className="bg-white rounded-[40px] border border-slate-100 shadow-xl p-8 hover:scale-[1.02] transition-all group cursor-pointer" onClick={() => onViewDetail(v.id)}>
-              <div className="flex justify-between items-start mb-6">
-                <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl font-black text-xs flex items-center gap-2">
-                  <MapPin size={14} />
-                  Zone {v.Zone}
+        <>
+          {/* モバイル表示: カード */}
+          <div className="md:hidden space-y-3">
+            {outboundToday.map(v => (
+              <div key={v.id} onClick={() => onViewDetail(v.id)} className="bg-surface rounded-section border border-line p-4 space-y-3 cursor-pointer">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-ink">{v.Automaker} {v.ModelOfCar}</p>
+                    <p className="text-xs text-ink-muted mt-0.5">{v.CompanyName} / {v.Destination}</p>
+                  </div>
+                  <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap shrink-0 ${documentToneClass(v.Document)}`}>
+                    {documentLabel(v.Document)}
+                  </span>
                 </div>
-                <div className="p-2 bg-slate-50 rounded-xl text-slate-400">
-                  <Clock size={18} />
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="font-mono text-ink-muted whitespace-nowrap truncate">{v.VIN}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onShowOnMap(v.VIN); }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-selected text-primary rounded-control text-xs font-medium hover:bg-primary hover:text-white transition-colors whitespace-nowrap shrink-0"
+                  >
+                    <MapPin size={14} aria-hidden="true" />
+                    {v.Zone || '未配置'}
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    onClick={() => onViewDetail(v.id)}
+                    className="flex-1 px-3 py-2.5 bg-page text-ink rounded-control text-xs font-medium border border-line hover:bg-selected transition-colors"
+                  >
+                    詳細
+                  </button>
+                  <button
+                    onClick={(e) => handleCompleteShipment(e, v.id)}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 bg-primary text-white rounded-control text-xs font-medium hover:bg-primary-hover transition-colors"
+                  >
+                    <CheckCircle size={14} /> 出荷完了
+                  </button>
                 </div>
               </div>
-              
-              <div className="space-y-1 mb-8">
-                <h4 className="text-2xl font-black text-slate-900 tracking-tight">{v.Automaker} {v.ModelOfCar}</h4>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{v.VIN}</p>
-              </div>
+            ))}
+          </div>
 
-              <div className="space-y-4 mb-8">
-                <div className="flex justify-between">
-                  <span className="text-[10px] font-black text-slate-400 uppercase">Destination</span>
-                  <span className="text-sm font-black text-slate-900">{v.Destination}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[10px] font-black text-slate-400 uppercase">Owner</span>
-                  <span className="text-sm font-black text-slate-900">{v.CompanyName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[10px] font-black text-slate-400 uppercase">Documents</span>
-                  <span className={`text-sm font-black ${v.Document === 'OK' ? 'text-emerald-500' : 'text-rose-500'}`}>{v.Document}</span>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button 
-                  onClick={(e) => handleCompleteShipment(e, v.id)}
-                  className="flex-1 py-4 bg-emerald-50 text-emerald-600 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
-                >
-                  <CheckCircle size={14} /> Complete
-                </button>
-                <button 
-                  onClick={() => onViewDetail(v.id)}
-                  className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 group-hover:bg-blue-600 transition-colors"
-                >
-                  View <ArrowRight size={14} />
-                </button>
-              </div>
+          {/* デスクトップ・タブレット表示: 表形式 */}
+          <div className="hidden md:block bg-surface rounded-section border border-line overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="bg-page text-ink-muted text-xs border-b border-line">
+                    <th className="px-4 py-3 font-medium">車両</th>
+                    <th className="px-4 py-3 font-medium">車体番号</th>
+                    <th className="px-4 py-3 font-medium text-center">保管場所</th>
+                    <th className="px-4 py-3 font-medium">輸出先</th>
+                    <th className="px-4 py-3 font-medium">書類</th>
+                    <th className="px-4 py-3 font-medium text-right">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {outboundToday.map(v => (
+                    <tr key={v.id} className="hover:bg-page transition-colors cursor-pointer" onClick={() => onViewDetail(v.id)}>
+                      <td className="px-4 py-4">
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-ink">{v.Automaker} {v.ModelOfCar}</span>
+                          <span className="text-xs text-ink-muted">{v.CompanyName}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 font-mono text-ink whitespace-nowrap">{v.VIN}</td>
+                      <td className="px-4 py-4 text-center">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onShowOnMap(v.VIN); }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-selected text-primary rounded-control text-xs font-medium hover:bg-primary hover:text-white transition-colors whitespace-nowrap"
+                        >
+                          <MapPin size={14} aria-hidden="true" />
+                          {v.Zone || '未配置'}
+                        </button>
+                      </td>
+                      <td className="px-4 py-4 text-ink whitespace-nowrap">{v.Destination}</td>
+                      <td className="px-4 py-4">
+                        <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap ${documentToneClass(v.Document)}`}>
+                          {documentLabel(v.Document)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => onViewDetail(v.id)}
+                            className="px-3 py-2 bg-page text-ink rounded-control text-xs font-medium border border-line hover:bg-selected transition-colors"
+                          >
+                            詳細
+                          </button>
+                          <button
+                            onClick={(e) => handleCompleteShipment(e, v.id)}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-primary text-white rounded-control text-xs font-medium hover:bg-primary-hover transition-colors"
+                          >
+                            <CheckCircle size={14} /> 出荷完了
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ))}
-        </div>
+          </div>
+        </>
       )}
     </div>
   );

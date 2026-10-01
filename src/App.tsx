@@ -1,9 +1,11 @@
+
 import logoUrl from './assets/S2S_logo.png';
 
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, PlusCircle, QrCode, Database, ChevronRight, LogOut, Bell, Settings, Search } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, QrCode, List, Map as MapIcon, Truck, Menu, X as CloseIcon, Settings } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import StockView from './pages/StockView';
+import YardMapPage from './pages/YardMapPage';
 import InboundMapFlow from './pages/InboundMapFlow';
 import MobileScanner from './pages/MobileScanner';
 import VehicleDetail from './pages/VehicleDetail';
@@ -12,7 +14,25 @@ import { Vehicle } from './types';
 import { INITIAL_VEHICLES } from './constants';
 import { upsertVehicle } from './utils';
 
-type Tab = 'dashboard' | 'stock' | 'inbound' | 'scanner' | 'detail' | 'today-outbound';
+type Tab = 'dashboard' | 'stock' | 'yard-map' | 'inbound' | 'scanner' | 'detail' | 'today-outbound';
+
+export interface StockFilters {
+  query: string;
+  company: string;
+  automaker: string;
+  document: string;
+}
+
+const EMPTY_FILTERS: StockFilters = { query: '', company: '', automaker: '', document: '' };
+
+const NAV_ITEMS: { id: Tab; icon: any; label: string }[] = [
+  { id: 'dashboard', icon: LayoutDashboard, label: 'ダッシュボード' },
+  { id: 'stock', icon: List, label: '在庫一覧' },
+  { id: 'yard-map', icon: MapIcon, label: 'ヤードマップ' },
+  { id: 'inbound', icon: PlusCircle, label: '車両登録' },
+  { id: 'scanner', icon: QrCode, label: 'QRスキャン' },
+  { id: 'today-outbound', icon: Truck, label: '出荷予定' },
+];
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -30,6 +50,8 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [assignmentVehicleId, setAssignmentVehicleId] = useState<string | null>(null);
+  const [stockFilters, setStockFilters] = useState<StockFilters>(EMPTY_FILTERS);
+  const [highlightedVin, setHighlightedVin] = useState<string | undefined>();
 
   useEffect(() => {
     localStorage.setItem('yard_manager_vehicles', JSON.stringify(vehicles));
@@ -40,7 +62,6 @@ const App: React.FC = () => {
   };
 
   const importVehicles = (newVehicles: Vehicle[]) => {
-    // IDが重複しないように既存のデータとマージ
     setVehicles(prev => [...newVehicles, ...prev]);
   };
 
@@ -49,7 +70,7 @@ const App: React.FC = () => {
   };
 
   const deleteVehicle = (id: string) => {
-    if (confirm("この車両データを削除（出庫処理）しますか？この操作は取り消せません。")) {
+    if (confirm('この車両データを削除（出荷完了）しますか？この操作は取り消せません。')) {
       setVehicles(prev => prev.filter(v => v.id !== id));
       if (selectedVehicleId === id) {
         setSelectedVehicleId(null);
@@ -75,124 +96,136 @@ const App: React.FC = () => {
     setActiveTab('inbound');
   };
 
-  const NavItem = ({ id, icon: Icon, label }: { id: Tab, icon: any, label: string }) => {
-    const isActive = activeTab === id;
-    if (id === 'detail' || id === 'today-outbound') return null;
+  const handleShowOnMap = (vin: string) => {
+    setHighlightedVin(vin);
+    setActiveTab('yard-map');
+  };
 
-    return (
-      <button
-        onClick={() => {
-          setAssignmentVehicleId(null);
-          setActiveTab(id);
-          setIsSidebarOpen(false);
-        }}
-        className={`group relative flex items-center justify-between w-full px-5 py-4 rounded-[24px] transition-all duration-500 ease-out ${
-          isActive 
-            ? 'bg-slate-900 text-white shadow-[0_20px_40px_-12px_rgba(0,0,0,0.2)] scale-[1.02]' 
-            : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
-        }`}
-      >
-        <div className="flex items-center space-x-4">
-          <div className={`p-2 rounded-xl transition-colors ${isActive ? 'bg-blue-600' : 'bg-transparent group-hover:bg-white'}`}>
-            <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
-          </div>
-          <span className={`font-bold tracking-tight text-sm ${isActive ? 'opacity-100' : 'opacity-70 group-hover:opacity-100'}`}>
-            {label}
-          </span>
-        </div>
-        {isActive && <ChevronRight size={14} className="opacity-40" />}
-      </button>
-    );
+  const navigate = (id: Tab) => {
+    setAssignmentVehicleId(null);
+    setActiveTab(id);
+    setIsSidebarOpen(false);
   };
 
   const selectedVehicle = vehicles.find(v => v.id === selectedVehicleId);
 
   return (
-    <div className="min-h-screen flex bg-slate-50/50 overflow-hidden">
+    <div className="min-h-screen flex bg-page">
       {isSidebarOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-40 lg:hidden transition-all duration-500" onClick={() => setIsSidebarOpen(false)} />
+        <div
+          className="fixed inset-0 bg-ink/40 z-40 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
       )}
 
       <aside className={`
-        fixed inset-y-0 left-0 z-50 w-[300px] bg-white transform transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] lg:relative lg:translate-x-0 p-8 flex flex-col border-r border-slate-100/80
+        fixed inset-y-0 left-0 z-50 w-[220px] bg-surface border-r border-line transform transition-transform duration-200 lg:relative lg:translate-x-0 flex flex-col
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <div className="flex items-center space-x-4 mb-14 px-2">
-          <div className="w-12 h-12 rounded-[18px] overflow-hidden shadow-2xl bg-white">
-            <img
-              src={logoUrl}
-              alt="Snap2Stock Logo"
-              className="w-full h-full object-contain"
-            />
+        <div className="flex items-center justify-between px-6 h-16 border-b border-line">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 shrink-0 bg-surface flex items-center justify-center">
+              <img src={logoUrl} alt="Snap2Stock" className="w-full h-full object-contain" />
+            </div>
+            <span className="font-bold text-ink truncate">Snap2Stock</span>
           </div>
-          <div className="flex flex-col">
-            <h1 className="text-xl font-black tracking-tighter text-slate-900 leading-none">Snap2Stock</h1>
-            <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mt-1">Vehicle Stock Management System</span>
-          </div>
+          <button
+            onClick={() => setIsSidebarOpen(false)}
+            className="p-1 text-ink-muted lg:hidden"
+            aria-label="メニューを閉じる"
+          >
+            <CloseIcon size={20} />
+          </button>
         </div>
 
-        <nav className="flex-1 space-y-2">
-          <NavItem id="dashboard" icon={LayoutDashboard} label="Dashboard" />
-          <NavItem id="stock" icon={Database} label="Stock List / Yard Map" />
-          <NavItem id="inbound" icon={PlusCircle} label="Vehicle Registration" />
-          <NavItem id="scanner" icon={QrCode} label="QR Scanner" />
+        <nav className="flex-1 px-3 py-4 space-y-1">
+          {NAV_ITEMS.map(({ id, icon: Icon, label }) => {
+            const isActive = activeTab === id;
+            return (
+              <button
+                key={id}
+                onClick={() => navigate(id)}
+                aria-current={isActive ? 'page' : undefined}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-control text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-selected text-primary'
+                    : 'text-ink-muted hover:bg-page hover:text-ink'
+                }`}
+              >
+                <Icon size={18} strokeWidth={2} />
+                {label}
+              </button>
+            );
+          })}
         </nav>
 
-        <div className="mt-auto p-6 bg-slate-50 rounded-[32px] border border-slate-100">
-          <div className="flex items-center space-x-3 mb-4">
-             <div className="w-10 h-10 bg-slate-900 rounded-full flex items-center justify-center text-xs font-black text-white">AD</div>
-             <div>
-               <p className="text-xs font-black">Admin</p>
-               <p className="text-[10px] text-slate-400 font-bold">Office Terminal</p>
-             </div>
-          </div>
-          <button 
+        <div className="p-3 border-t border-line">
+          <button
             onClick={() => {
-              if (confirm("全てのデータをリセットして初期状態に戻しますか？")) {
+              if (confirm('全ての車両データをリセットして初期状態に戻しますか？この操作は取り消せません。')) {
                 localStorage.removeItem('yard_manager_vehicles');
                 window.location.reload();
               }
             }}
-            className="w-full flex items-center justify-center gap-2 text-[10px] font-black uppercase text-rose-500 tracking-widest hover:text-rose-600 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-control text-xs font-medium text-ink-muted hover:bg-danger-bg hover:text-danger-text transition-colors"
           >
-            <LogOut size={12} /> Reset System
+            <Settings size={14} />
+            システムをリセット
           </button>
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden lg:rounded-l-[60px] lg:ml-[-20px] shadow-2xl bg-white border-l border-white relative z-10">
-        <header className="h-24 flex items-center justify-between px-8 lg:px-16 shrink-0 z-20">
-          <div className="flex items-center flex-1 max-w-2xl">
-            <button onClick={() => setIsSidebarOpen(true)} className="p-3 mr-6 text-slate-900 lg:hidden bg-slate-50 rounded-[18px]">
-              <Search size={22} />
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        <header className="h-16 flex items-center justify-between px-6 shrink-0 bg-surface border-b border-line">
+          <div className="flex items-center gap-4 min-w-0">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 text-ink lg:hidden rounded-control hover:bg-page"
+              aria-label="メニューを開く"
+            >
+              <Menu size={22} />
             </button>
-            <div className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">
-              Current Session: <span className="text-slate-900 ml-2">Main Yard A</span>
-            </div>
-          </div>
-          <div className="flex items-center space-x-4 ml-10">
-            <button className="p-3 text-slate-400 hover:text-slate-900 transition-colors"><Bell size={20} /></button>
-            <button className="p-3 text-slate-400 hover:text-slate-900 transition-colors"><Settings size={20} /></button>
+            <span className="text-sm text-ink-muted truncate">
+              <span className="font-medium text-ink">メインヤード A</span>
+            </span>
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-8 py-8 lg:px-16 lg:py-12 bg-white">
-          <div className="max-w-[1400px] mx-auto pb-20">
+        <main className="flex-1 overflow-y-auto px-6 py-6 lg:px-10 lg:py-8">
+          <div className="max-w-[1400px] mx-auto pb-12">
             {activeTab === 'dashboard' && (
-              <Dashboard 
-                vehicles={vehicles} 
-                onNavigateToStock={() => setActiveTab('stock')}
-                onNavigateToTodayOutbound={() => setActiveTab('today-outbound')}
+              <Dashboard
+                vehicles={vehicles}
+                onNavigateToStock={() => navigate('stock')}
+                onNavigateToTodayOutbound={() => navigate('today-outbound')}
                 onNavigateToInbound={handleNewInbound}
-                onNavigateToScanner={() => setActiveTab('scanner')}
+                onNavigateToScanner={() => navigate('scanner')}
                 onImportVehicles={importVehicles}
+                onViewDetail={handleViewDetail}
+                onSearch={(query) => {
+                  setStockFilters({ ...EMPTY_FILTERS, query });
+                  navigate('stock');
+                }}
               />
             )}
             {activeTab === 'stock' && (
-              <StockView 
-                vehicles={vehicles} 
+              <StockView
+                vehicles={vehicles}
+                filters={stockFilters}
+                onFiltersChange={setStockFilters}
                 onViewDetail={handleViewDetail}
                 onDeleteVehicle={deleteVehicle}
+                onShowOnMap={handleShowOnMap}
+              />
+            )}
+            {activeTab === 'yard-map' && (
+              <YardMapPage
+                vehicles={vehicles}
+                filters={stockFilters}
+                onFiltersChange={setStockFilters}
+                highlightedVin={highlightedVin}
+                onHighlightVin={setHighlightedVin}
+                onViewDetail={handleViewDetail}
               />
             )}
             {activeTab === 'inbound' && (
@@ -217,22 +250,24 @@ const App: React.FC = () => {
             {activeTab === 'detail' && selectedVehicle && (
               <VehicleDetail
                 vehicle={selectedVehicle}
-                onBack={() => setActiveTab('stock')}
+                onBack={() => navigate('stock')}
                 onDelete={deleteVehicle}
                 onStartAssignment={handleStartAssignment}
+                onShowOnMap={handleShowOnMap}
               />
             )}
             {activeTab === 'today-outbound' && (
-              <TodayOutboundList 
-                vehicles={vehicles} 
-                onViewDetail={handleViewDetail} 
-                onBack={() => setActiveTab('dashboard')} 
+              <TodayOutboundList
+                vehicles={vehicles}
+                onViewDetail={handleViewDetail}
+                onBack={() => navigate('dashboard')}
                 onDeleteVehicle={deleteVehicle}
+                onShowOnMap={handleShowOnMap}
               />
             )}
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 };
