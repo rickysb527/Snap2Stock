@@ -27,3 +27,24 @@ export const upsertVehicle = (vehicles: Vehicle[], vehicle: Vehicle): Vehicle[] 
     ? vehicles.map(v => (v.id === vehicle.id ? vehicle : v))
     : [vehicle, ...vehicles];
 };
+
+const DOCUMENT_LABELS: Record<string, string> = {
+  OK: '準備済み',
+  Pending: '確認待ち',
+  Missing: '不足',
+};
+
+/** 書類ステータスの保存値（OK/Pending/Missing等）を日本語表示ラベルへ変換する */
+export const documentLabel = (status: string): string => DOCUMENT_LABELS[status] || status;
+
+/** 書類ステータスを「書類：〜」形式のラベルに変換する（詳細画面など見出し併記向け） */
+export const documentLabelWithPrefix = (status: string): string => `書類：${documentLabel(status)}`;
+
+const DOCUMENT_TONE_CLASSES: Record<string, string> = {
+  OK: 'bg-success-bg text-success-text',
+  Pending: 'bg-warning-bg text-warning-text',
+  Missing: 'bg-danger-bg text-danger-text',
+};
+
+/** 書類ステータスに応じた配色クラス（Tailwind）を返す。未知の値は注意色扱い */
+export const documentToneClass = (status: string): string => DOCUMENT_TONE_CLASSES[status] || DOCUMENT_TONE_CLASSES.Missing;
