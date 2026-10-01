@@ -31,10 +31,12 @@ Snap2Stock は、大企業向けの高精度管理と、中小ヤードの属人
 
 ### 画面構成
 
-- **Dashboard** — 在庫サマリ、本日出庫予定の確認、Excel インポート
-- **Stock List / Yard Map** — 在庫一覧とヤードマップ表示
-- **Vehicle Registration** — ヤードマップから入庫位置を選んで車両登録（写真から自動入力）
-- **QR Scanner** — カメラ / 画像から車両を特定し、ゾーンを更新（Gemini API）
+- **ダッシュボード** — 在庫サマリ、本日出荷予定の確認、Excel インポート
+- **在庫一覧** — 車両の検索・絞り込み、詳細・QRラベルへの導線
+- **ヤードマップ** — ヤードの区画表示、検索結果のハイライト
+- **車両登録** — ヤードマップから入庫位置を選んで車両登録（写真から自動入力）
+- **QR スキャン** — カメラ / 画像から車両を特定し、ゾーンを更新（Gemini API）
+- **出荷予定** — 本日出荷予定の車両一覧と出荷完了操作
 
 ## 競合との比較
 
@@ -50,7 +52,7 @@ Snap2Stock は、大企業向けの高精度管理と、中小ヤードの属人
 ## 技術スタック
 
 - [Vite](https://vitejs.dev/) + [React 19](https://react.dev/)（TypeScript）
-- [Tailwind CSS](https://tailwindcss.com/)（CDN 経由）
+- [Tailwind CSS](https://tailwindcss.com/)（PostCSS 経由のビルド）
 - [Google Gemini API](https://ai.google.dev/)（`@google/genai`）— 画像からの車両情報抽出・QR スキャン
 - [lucide-react](https://lucide.dev/)（アイコン） / [xlsx](https://sheetjs.com/)（Excel 入出力）
 
@@ -65,7 +67,7 @@ Snap2Stock/
 ├── src/                 # ブラウザ側のReactアプリ
 │   ├── App.tsx
 │   ├── main.tsx         # アプリのエントリーポイント
-│   ├── pages/           # Dashboard・在庫一覧・入庫・スキャナーなどの画面
+│   ├── pages/           # ダッシュボード・在庫一覧・ヤードマップ・入庫・スキャナーなどの画面
 │   ├── components/      # VehicleForm・YardMapなど画面内の部品
 │   ├── services/        # 画像解析APIの呼び出し
 │   ├── assets/          # ロゴなど、ビルドに含める画像
