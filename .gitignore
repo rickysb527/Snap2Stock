@@ -32,3 +32,6 @@ dist-ssr
 # Build artifacts
 dist.zip
 .vercel
+
+# Diagram source files (local editing only)
+*.drawio
