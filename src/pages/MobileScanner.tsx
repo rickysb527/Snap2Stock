@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { Vehicle } from '../types';
-import { MapPin, QrCode, Loader2, Camera, CheckCircle2, X as CloseIcon } from 'lucide-react';
+import { MapPin, QrCode, Loader2, Camera, CheckCircle2, X as CloseIcon, Search } from 'lucide-react';
 import { analyzeImage } from '../services/imageAnalysis';
 
 interface MobileScannerProps {
@@ -9,12 +9,15 @@ interface MobileScannerProps {
   onUpdateZone: (id: string, newZone: string) => void;
 }
 
+type ScanState = 'idle' | 'analyzing' | 'found' | 'not-found' | 'error';
+
 const MobileScanner: React.FC<MobileScannerProps> = ({ vehicles, onUpdateZone }) => {
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [scanState, setScanState] = useState<ScanState>('idle');
   const [detectedVehicle, setDetectedVehicle] = useState<Vehicle | null>(null);
   const [newZone, setNewZone] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [vinQuery, setVinQuery] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -24,49 +27,46 @@ const MobileScanner: React.FC<MobileScannerProps> = ({ vehicles, onUpdateZone })
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
     setDetectedVehicle(null);
-    setIsAnalyzing(true);
+    setScanState('analyzing');
 
     try {
       const response = await analyzeImage(file, 'identify');
       const rawText = response.text || '';
-      // クレンジング: Markdownや「ID:」などの文字を除去
       const cleanedInput = rawText.replace(/[`\s]|ID:|Result:|yard-edit-|yard-v2:/gi, '').trim();
 
       if (cleanedInput !== 'NOT_FOUND' && cleanedInput.length > 2) {
-        // パイプ区切りのリッチデータが含まれている場合、最初の要素（ID）または2番目（VIN）を使用
         const parts = cleanedInput.split('|');
         const searchTerms = parts.map(p => p.toLowerCase());
-        
+
         const vehicle = vehicles.find(v => {
           const vId = v.id.toLowerCase();
           const vVin = v.VIN.toLowerCase();
           const vVinNoHyphen = vVin.replace(/-/g, '');
-          
+
           return searchTerms.some(term => {
             const termNoHyphen = term.replace(/-/g, '');
             return (
-              vId === term || 
-              vVin === term || 
+              vId === term ||
+              vVin === term ||
               vVin.includes(term) ||
               vVinNoHyphen === termNoHyphen ||
               termNoHyphen.includes(vVinNoHyphen)
             );
           });
         });
-        
+
         if (vehicle) {
           setDetectedVehicle(vehicle);
+          setScanState('found');
         } else {
-          alert(`車両が見つかりませんでした。認識結果: ${cleanedInput}\n(リロードにより登録データが消えていないか確認してください)`);
+          setScanState('not-found');
         }
       } else {
-        alert("QRコードまたは車両情報を認識できませんでした。もう少し近づけて撮影してください。");
+        setScanState('not-found');
       }
     } catch (err) {
-      console.error("Analysis Error:", err);
-      alert(err instanceof Error ? err.message : '画像解析に失敗しました。');
-    } finally {
-      setIsAnalyzing(false);
+      console.error('Analysis Error:', err);
+      setScanState('error');
     }
   };
 
@@ -79,6 +79,7 @@ const MobileScanner: React.FC<MobileScannerProps> = ({ vehicles, onUpdateZone })
         setDetectedVehicle(null);
         setNewZone('');
         setPreviewUrl(null);
+        setScanState('idle');
       }, 2000);
     }
   };
@@ -87,109 +88,125 @@ const MobileScanner: React.FC<MobileScannerProps> = ({ vehicles, onUpdateZone })
     setDetectedVehicle(null);
     setPreviewUrl(null);
     setNewZone('');
+    setScanState('idle');
+  };
+
+  const handleVinSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = vinQuery.trim().toLowerCase();
+    if (!q) return;
+    const vehicle = vehicles.find(v => v.VIN.toLowerCase().includes(q));
+    if (vehicle) {
+      setDetectedVehicle(vehicle);
+      setScanState('found');
+      setPreviewUrl(null);
+    } else {
+      setScanState('not-found');
+      setDetectedVehicle(null);
+    }
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in duration-700">
-      <div className="text-center space-y-2">
-        <h2 className="text-3xl font-black tracking-tighter text-slate-900 uppercase">QR Scanner</h2>
-        <p className="text-slate-400 font-bold text-[10px] tracking-widest uppercase">Hybrid QR & VIN Recognition</p>
+    <div className="max-w-2xl mx-auto space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-ink">QRスキャン</h2>
+        <p className="text-sm text-ink-muted mt-1">車両ラベルのQRコードを撮影して在庫情報を照合します。</p>
       </div>
 
-      <div className="relative bg-white rounded-[48px] overflow-hidden shadow-2xl border-8 border-white min-h-[400px] flex flex-col items-center justify-center group border border-slate-100">
-        <input 
-          type="file" 
-          accept="image/*" 
-          capture="environment" 
-          className="hidden" 
-          ref={fileInputRef} 
-          onChange={handleCapture} 
+      <div className="bg-surface rounded-section border border-line overflow-hidden min-h-[360px] flex flex-col items-center justify-center">
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          ref={fileInputRef}
+          onChange={handleCapture}
         />
 
         {!previewUrl ? (
-          <div className="p-12 text-center flex flex-col items-center">
-            <div className="w-32 h-32 bg-blue-50 text-blue-600 rounded-[40px] flex items-center justify-center mb-10 shadow-inner">
-               <QrCode size={56} strokeWidth={2.5} />
+          <div className="p-10 text-center flex flex-col items-center">
+            <div className="w-20 h-20 bg-selected text-primary rounded-section flex items-center justify-center mb-6">
+              <QrCode size={36} />
             </div>
-            <h3 className="text-2xl font-black text-slate-900 mb-4 tracking-tight">車両をスキャン</h3>
-            <p className="text-slate-400 font-medium text-sm mb-12 leading-relaxed max-w-sm">
-              車両ラベルのQRコードを撮影してください。<br/>QRが読み取れない場合は、車体番号(VIN)やナンバープレートでも認識可能です。
+            <h3 className="text-lg font-bold text-ink mb-2">車両をスキャン</h3>
+            <p className="text-sm text-ink-muted mb-8 leading-relaxed max-w-sm">
+              QRコードが読み取れない場合は、車体番号（VIN）でも検索できます。
             </p>
-            <button 
+            <button
               onClick={() => fileInputRef.current?.click()}
-              className="group relative px-12 py-6 bg-blue-600 text-white rounded-[28px] font-black uppercase text-xs tracking-[0.2em] shadow-[0_20px_40px_-10px_rgba(37,99,235,0.4)] hover:bg-blue-500 hover:scale-105 transition-all flex items-center gap-4"
+              className="px-8 py-3.5 bg-primary text-white rounded-control text-sm font-medium hover:bg-primary-hover transition-colors flex items-center gap-2"
             >
-              <Camera size={20} />
-              スキャンを開始
+              <Camera size={18} />
+              撮影して読み取る
             </button>
           </div>
         ) : (
-          <div className="w-full h-full flex flex-col">
-            <div className="relative aspect-[4/3] w-full bg-slate-100 overflow-hidden">
-              <img src={previewUrl} className="w-full h-full object-cover" alt="Captured" />
-              {isAnalyzing && (
-                <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex flex-col items-center justify-center">
-                   <Loader2 size={48} className="text-blue-400 animate-spin mb-4" />
-                   <p className="text-white font-black text-[10px] uppercase tracking-[0.4em]">AI Processing Image...</p>
+          <div className="w-full flex flex-col">
+            <div className="relative aspect-[4/3] w-full bg-page overflow-hidden">
+              <img src={previewUrl} className="w-full h-full object-cover" alt="撮影した画像のプレビュー" />
+              {scanState === 'analyzing' && (
+                <div className="absolute inset-0 bg-ink/60 flex flex-col items-center justify-center">
+                  <Loader2 size={40} className="text-white animate-spin mb-3" />
+                  <p className="text-white text-sm font-medium">読取中...</p>
                 </div>
               )}
-              <button 
+              <button
                 onClick={reset}
-                className="absolute top-6 right-6 p-3 bg-white/20 backdrop-blur-md text-white rounded-full hover:bg-white/40 transition-all"
+                className="absolute top-4 right-4 p-2 bg-white/80 text-ink rounded-full hover:bg-white transition-colors"
+                aria-label="閉じる"
               >
-                <CloseIcon size={20} />
+                <CloseIcon size={18} />
               </button>
             </div>
 
-            {detectedVehicle && (
-              <div className="p-8 space-y-6 animate-in slide-in-from-bottom duration-500">
+            {scanState === 'found' && detectedVehicle && (
+              <div className="p-6 space-y-5">
                 {isSuccess ? (
-                  <div className="py-10 flex flex-col items-center text-center">
-                     <div className="w-20 h-20 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mb-6">
-                        <CheckCircle2 size={40} />
-                     </div>
-                     <p className="text-2xl font-black text-slate-900 tracking-tight">更新が完了しました</p>
+                  <div className="py-8 flex flex-col items-center text-center">
+                    <div className="w-16 h-16 bg-success-bg text-success-text rounded-full flex items-center justify-center mb-4">
+                      <CheckCircle2 size={32} />
+                    </div>
+                    <p className="text-lg font-bold text-ink">更新が完了しました</p>
                   </div>
                 ) : (
                   <>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">認識結果</p>
-                        <h4 className="text-2xl font-black text-slate-900">{detectedVehicle.Automaker} {detectedVehicle.ModelOfCar}</h4>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{detectedVehicle.VIN}</p>
-                      </div>
+                    <div>
+                      <p className="text-xs font-medium text-primary mb-1">該当車両が見つかりました</p>
+                      <h4 className="text-lg font-bold text-ink">{detectedVehicle.Automaker} {detectedVehicle.ModelOfCar}</h4>
+                      <p className="text-xs font-mono text-ink-muted mt-1">{detectedVehicle.VIN}</p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">現在の位置</p>
-                        <p className="text-xl font-black text-slate-900">{detectedVehicle.Zone}</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-4 bg-page rounded-control border border-line">
+                        <p className="text-xs text-ink-muted mb-1">現在の保管場所</p>
+                        <p className="text-lg font-bold text-ink">{detectedVehicle.Zone || '未配置'}</p>
                       </div>
-                      <div className="p-5 bg-blue-50 rounded-2xl border border-blue-100">
-                        <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">新しい位置</p>
-                        <input 
-                          type="text" 
+                      <div className="p-4 bg-selected rounded-control border border-primary/20">
+                        <label htmlFor="new-zone" className="text-xs text-primary mb-1 block">新しい保管場所</label>
+                        <input
+                          id="new-zone"
+                          type="text"
                           value={newZone}
                           placeholder="例: B-2"
-                          className="w-full bg-transparent border-none outline-none text-xl font-black text-blue-600 placeholder:text-blue-200"
+                          className="w-full bg-transparent border-none outline-none text-lg font-bold text-primary placeholder:text-primary/40"
                           onChange={(e) => setNewZone(e.target.value.toUpperCase())}
                         />
                       </div>
                     </div>
 
-                    <div className="flex gap-4 pt-2">
-                       <button 
+                    <div className="flex gap-3">
+                      <button
                         onClick={() => fileInputRef.current?.click()}
-                        className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all"
+                        className="flex-1 py-3 bg-page border border-line text-ink rounded-control text-sm font-medium hover:bg-selected transition-colors"
                       >
                         撮り直す
                       </button>
-                      <button 
+                      <button
                         onClick={handleUpdate}
                         disabled={!newZone}
-                        className="flex-[2] py-5 bg-slate-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-xl disabled:opacity-20 transition-all flex items-center justify-center gap-3"
+                        className="flex-[2] py-3 bg-ink text-white rounded-control text-sm font-medium disabled:opacity-30 transition-opacity flex items-center justify-center gap-2 hover:bg-primary"
                       >
-                        <MapPin size={18} /> スロットを変更
+                        <MapPin size={16} /> 保管場所を変更
                       </button>
                     </div>
                   </>
@@ -197,19 +214,49 @@ const MobileScanner: React.FC<MobileScannerProps> = ({ vehicles, onUpdateZone })
               </div>
             )}
 
-            {!detectedVehicle && !isAnalyzing && (
-              <div className="p-12 text-center">
-                <p className="text-slate-400 font-bold text-sm mb-6">車両の照合に失敗しました。</p>
-                <button 
+            {scanState === 'not-found' && (
+              <div className="p-10 text-center">
+                <p className="text-sm font-medium text-ink mb-1">該当する車両が見つかりませんでした。</p>
+                <p className="text-xs text-ink-muted mb-6">QRコードや車体番号をもう一度ご確認ください。</p>
+                <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest"
+                  className="px-6 py-3 bg-primary text-white rounded-control text-sm font-medium hover:bg-primary-hover transition-colors"
                 >
                   再撮影
                 </button>
               </div>
             )}
+
+            {scanState === 'error' && (
+              <div className="p-10 text-center">
+                <p className="text-sm font-medium text-danger-text mb-1">読取処理に失敗しました。</p>
+                <p className="text-xs text-ink-muted mb-6">通信状況を確認し、もう一度お試しください。</p>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-6 py-3 bg-primary text-white rounded-control text-sm font-medium hover:bg-primary-hover transition-colors"
+                >
+                  再試行
+                </button>
+              </div>
+            )}
           </div>
         )}
+      </div>
+
+      <div className="bg-surface rounded-section border border-line p-5">
+        <h3 className="text-sm font-bold text-ink mb-3">車体番号で検索</h3>
+        <form onSubmit={handleVinSearch} className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-muted" size={16} aria-hidden="true" />
+          <label htmlFor="vin-search" className="sr-only">車体番号（VIN）で検索</label>
+          <input
+            id="vin-search"
+            type="text"
+            placeholder="車体番号（VIN）を入力"
+            className="w-full pl-10 pr-4 py-2.5 bg-page border border-line rounded-control focus:bg-surface focus:border-primary outline-none text-sm text-ink"
+            value={vinQuery}
+            onChange={(e) => setVinQuery(e.target.value)}
+          />
+        </form>
       </div>
     </div>
   );
